@@ -19,18 +19,14 @@ async def send_message(
 ) -> ChatMessageResponse:
     """
     Send a message and get a response from the AI assistant.
-    
-    This endpoint:
-    1. Receives user message
-    2. Updates user profile
-    3. Determines next action (ask question or provide analysis)
-    4. Returns appropriate response
     """
     try:
         logger.info(f"Received message from session: {request.session_id}")
+        logger.info(f"Message content: {request.message[:100]}")
         
         # Get use case with session
         use_case = await get_process_message_use_case(session)
+        logger.info("Use case created successfully")
         
         # Process message
         result = await use_case.execute(
@@ -38,11 +34,26 @@ async def send_message(
             user_message=request.message,
         )
         
-        return ChatMessageResponse(**result)
+        logger.info(f"Result: {result}")
+        
+        # Ensure all required fields are present
+        response_data = {
+            "response": result.get("response", "Bir hata oluştu"),
+            "type": result.get("type", "error"),
+            "is_complete": result.get("is_complete", False),
+            "category": result.get("category"),
+            "analysis": result.get("analysis"),
+        }
+        
+        return ChatMessageResponse(**response_data)
         
     except Exception as e:
-        logger.error(f"Error processing message: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail="An error occurred while processing your message"
+        logger.error(f"CRITICAL ERROR processing message: {str(e)}", exc_info=True)
+        # Return error response instead of raising HTTPException
+        return ChatMessageResponse(
+            response="Bir hata oluştu ama korkma, tekrar dene! 😊",
+            type="error",
+            is_complete=False,
+            category=None,
+            analysis=None,
         )

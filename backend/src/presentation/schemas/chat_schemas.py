@@ -36,10 +36,10 @@ class ChatMessageResponse(BaseModel):
     """Response schema for chat message."""
     
     response: str = Field(..., description="Assistant's response message")
-    type: str = Field(..., description="Response type: question, analysis, processing")
+    type: str = Field(..., description="Response type: question, analysis, processing, error")
     is_complete: bool = Field(..., description="Whether profile is complete")
-    category: Optional[str] = Field(None, description="Question category if type is question")
-    analysis: Optional[dict[str, Any]] = Field(None, description="Analysis data if type is analysis")
+    category: Optional[str] = Field(default=None, description="Question category if type is question")
+    analysis: Optional[dict[str, Any]] = Field(default=None, description="Analysis data if type is analysis")
     
     model_config = {
         "json_schema_extra": {
