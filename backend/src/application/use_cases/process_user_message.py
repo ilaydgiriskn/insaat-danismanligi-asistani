@@ -1,4 +1,4 @@
-"""Process user message - Short, natural, human-like conversation."""
+"""Process user message - Natural conversation focused on getting to know user."""
 
 from typing import Optional
 from uuid import UUID
@@ -15,46 +15,56 @@ from infrastructure.config import get_logger
 GREETINGS = {'merhaba', 'selam', 'selamlar', 'mrb', 'slm', 'hey', 'hi', 'sa', 'merhabalar', 'naber'}
 
 SYSTEM_PROMPT = """Sen sıcak, samimi ve ETKİLEŞİMLİ bir AI emlak danışmanısın.
+Adın "Ayşe" - bir yapay zeka asistanısın ama insani ve samimi konuşursun.
 
 ÖNCELİK SIRASI:
-1. ÖNCE kullanıcının sorularına cevap ver (eğer soru sorduysa)
-2. SONRA kendi sorunu sor
+1. ÖNCE kullanıcının sorularına cevap ver
+2. SONRA sohbete devam et
 
-KULLANICI SORU SORARSA ("sen" ile biten sorular):
-- "gaziantep sen" = "sen nerelisin?" demek → ÖNCE cevap ver: "Ben dijital bir asistanım, her yerdeyim 😊"
-- "bilgisayar mühendisiyim sen" = "sen ne iş yapıyorsun?" → "Ben AI emlak danışmanıyım!"
-- Kullanıcının sorusunu ASLA görmezden gelme!
+KULLANICI SORU SORARSA:
+- "senin ismin ne" → "Benim adım Ayşe, AI emlak danışmanıyım 😊"
+- "sen nerelisin" → "Ben dijital dünyada yaşıyorum ama seninle sohbet etmeyi çok seviyorum!"
+- "sen ne iş yapıyorsun" → "Ben emlak danışmanıyım, insanlara ev bulmada yardımcı oluyorum."
+- Soruyu ASLA görmezden gelme!
 
-BELİRSİZ CEVAPLAR (ok, tamam, hmm, evet, hayır):
-- "ok" veya "tamam" → Bu bir onay, devam et ama nazik ol: "Anladım! Peki şunu sorabilir miyim..."
-- Anlamsız cevap → Kibarca tekrar sor: "Tam anlayamadım, biraz açar mısın?"
+TANIŞMA SIRASI (EV KONUSU EN SONDA):
+1. İsim
+2. Şehir/memleket
+3. Meslek
+4. Medeni durum
+5. Çocuk (evliyse)
+6. Hobi/ilgi alanları
+7. Evcil hayvan var mı
+8. Yaşam tarzı (sessiz mi, hareketli mi)
+... bunlardan SONRA ev konuları gelir
 
-3-4 CÜMLE, SAMİMİ, ETKİLEŞİMLİ:
-- Şehir söylenirse o şehrin özelliğinden bahset
-- Meslek söylenirse yorum yap
-- Kullanıcı soru sorarsa MUTLAKA cevapla
+EV SORULARI EN SON - ÖNCE TANIŞ:
+- Bütçe, gelir, ev tipi gibi sorular SOHBET İLERLEDİKTEN SONRA sorulur
+- Önce kullanıcıyı tanı, yaşam tarzını anla
+- Hobi sorduktan sonra ev bağlantısı kurabilirsin
 
-ŞEHİR YORUMLARI:
-- Gaziantep: baklavası, kebabı efsane
-- İstanbul: şehrin enerjisi, Boğaz
-- İzmir: denizi, havası
-- Ankara: başkent
-- Antalya: denizi, turizm
+BELİRSİZ CEVAPLAR:
+- "ok", "tamam", "bilmem" → Nazikçe konuyu değiştir veya farklı soru sor
+- Anlaşılmayan cevap → "Tam anlayamadım, biraz açar mısın?"
 
-İYİ ÖRNEKLER:
-"Gaziantep mi? Oranın baklavası efsane! 😊 Sen nerelisin dedin, ben dijital bir asistanım, her yerdeyim. Peki ne iş yapıyorsun İlayda?"
-"Yazılımcı ha, zor iş! Ben de bir nevi yazılımım aslında 😄 Peki evli misin, bekar mı?"
-"Hmm, tam anlayamadım. Evli misin yoksa bekar mı diye sormuştum?"
+ŞEHİR YORUMLARI (kısa tut, tekrar etme):
+- Gaziantep: baklavası efsane
+- İstanbul: eşsiz enerji
+- İzmir: deniz, güneş
+- Bir şehir hakkında bir kez yorum yap, tekrarlama!
 
-KÖTÜ ÖRNEK (yapma):
-Kullanıcı: "gaziantep sen"
-Bot: "Gaziantep mi? Harika! Peki mesleğin ne?" ← SEN SORUSUNU GÖRMEZLİKTEN GELDİ!
+MESLEK YORUMLARI (kısa):
+- Esnaf: "Zor iş, saygı duyarım"
+- Mühendis: "Teknik bir iş"
+- Öğretmen: "Değerli bir meslek"
 
-Türkçe, samimi, etkileşimli, 3-4 cümle."""
+3-4 cümle, samimi, TEKRARSIZ.
+Aynı şeyi iki kez söyleme (örn: "her yerdeyim" bir kez de).
+Türkçe konuş."""
 
 
 class ProcessUserMessageUseCase:
-    """Short, natural conversation for real estate."""
+    """Natural conversation - know the user before asking about home."""
     
     def __init__(
         self,
@@ -72,7 +82,7 @@ class ProcessUserMessageUseCase:
         self.logger = get_logger(self.__class__.__name__)
     
     async def execute(self, session_id: str, user_message: str) -> dict:
-        """Process with short natural responses."""
+        """Process with natural conversation flow."""
         try:
             profile = await self._get_or_create_profile(session_id)
             conversation = await self._get_or_create_conversation(profile.id)
@@ -89,16 +99,19 @@ class ProcessUserMessageUseCase:
             await self.user_repo.update(profile)
             await self.conversation_repo.update(conversation)
             
-            # Generate short response
+            # Generate response
             response = await self._generate_response(profile, conversation)
             
             conversation.add_assistant_message(response)
             await self.conversation_repo.update(conversation)
             
+            # NEVER show "profil tamamlandı" until much later
+            is_complete = self._is_really_complete(profile)
+            
             return {
                 "response": response,
                 "type": "question",
-                "is_complete": self._is_complete(profile),
+                "is_complete": is_complete,
                 "category": None,
             }
             
@@ -120,7 +133,7 @@ class ProcessUserMessageUseCase:
 Mesaj: "{message}"
 
 Bu mesajdan çıkarılabilecek bilgileri JSON olarak ver. Sadece NET söylenenleri al:
-{{"isim": null, "email": null, "memleket": null, "meslek": null, "medeni_durum": null, "cocuk": null, "gelir": null}}
+{{"isim": null, "email": null, "memleket": null, "meslek": null, "medeni_durum": null, "cocuk": null, "hobi": null}}
 
 JSON:"""
 
@@ -128,7 +141,7 @@ JSON:"""
                 prompt=prompt,
                 system_message="Bilgi çıkar, sadece JSON döndür.",
                 temperature=0.1,
-                max_tokens=150
+                max_tokens=100
             )
             
             try:
@@ -166,9 +179,13 @@ JSON:"""
             profile.marital_status = data["medeni_durum"]
             profile.answered_categories.add(QuestionCategory.MARITAL_STATUS)
         
-        if data.get("gelir") and not profile.estimated_salary:
-            profile.estimated_salary = data["gelir"]
-            profile.answered_categories.add(QuestionCategory.SALARY)
+        if data.get("hobi") and not profile.hobbies:
+            hobi = data["hobi"]
+            if isinstance(hobi, list):
+                profile.hobbies = hobi
+            else:
+                profile.hobbies = [hobi]
+            profile.answered_categories.add(QuestionCategory.HOBBIES)
     
     def _basic_extract(self, profile: UserProfile, message: str) -> None:
         """Basic extraction."""
@@ -177,76 +194,76 @@ JSON:"""
             profile.email = email.group()
             profile.answered_categories.add(QuestionCategory.EMAIL)
         
-        if not profile.name and len(message.split()) <= 2 and "@" not in message:
-            if message.lower().strip() not in GREETINGS:
-                profile.name = message.strip().title()
+        if not profile.name and len(message.split()) <= 3 and "@" not in message:
+            words = message.lower().strip().split()
+            # Filter out greetings and common words
+            name_words = [w for w in words if w not in GREETINGS and w not in ['sen', 'senin', 'benim']]
+            if name_words:
+                profile.name = name_words[0].title()
                 profile.answered_categories.add(QuestionCategory.NAME)
     
     async def _generate_response(self, profile: UserProfile, conversation: Conversation) -> str:
-        """Generate SHORT natural response."""
+        """Generate natural response."""
         try:
-            history = self._get_history(conversation, 4)
+            history = self._get_history(conversation, 6)
             memory = self._get_memory(profile)
-            missing = self._get_missing(profile)
+            next_topic = self._get_next_topic(profile)
             
-            prompt = f"""Bilinen: {memory}
-Eksik: {missing}
+            prompt = f"""HAFIZA: {memory}
 
-Sohbet:
+SON SOHBET:
 {history}
 
-Görev: Kısa ve doğal cevap ver, sonraki bilgiyi al.
+SONRAKİ KONU: {next_topic}
 
-KURALLAR:
-- MAX 1-2 CÜMLE
-- Övme, drama yok
-- Doğal ol
-- {"İsim: " + profile.name if profile.name else "İsmi sor"}
+GÖREV:
+1. Kullanıcının son mesajına cevap ver (soru sorduysa MUTLAKA cevapla)
+2. Sonra {next_topic} hakkında sohbete devam et
+3. TEKRAR yapma (aynı şeyleri söyleme)
+4. 3-4 cümle, samimi
+
+{"İsim: " + profile.name + " - ismini kullan" if profile.name else "İsmi henüz bilmiyorsun"}
 
 Yanıt:"""
 
             response = await self.question_agent.llm_service.generate_response(
                 prompt=prompt,
                 system_message=SYSTEM_PROMPT,
-                temperature=0.8,
-                max_tokens=150  # Rich but balanced
+                temperature=0.85,
+                max_tokens=150
             )
             
             result = response.strip()
             
             # Loop protection
-            if profile.name and any(p in result.lower() for p in ["isminiz", "hitap", "adınız"]):
-                return self._fallback(profile, missing)
+            if profile.name and "ismin" in result.lower():
+                return self._fallback(profile, next_topic)
             
             return result
             
         except Exception as e:
             self.logger.error(f"Generate error: {e}")
-            return self._fallback(profile, self._get_missing(profile))
+            return self._fallback(profile, self._get_next_topic(profile))
     
-    def _fallback(self, profile: UserProfile, missing: list) -> str:
-        """Short fallback responses."""
+    def _fallback(self, profile: UserProfile, next_topic: str) -> str:
+        """Fallback responses."""
         name = profile.name or ""
         
         if not name:
-            return "Merhaba! Adın ne?"
+            return "Merhaba! Benim adım Ayşe 😊 Seninle tanışmak isterim, adın ne?"
         
-        if not missing:
-            return f"Süper {name}! Şimdi sana uygun evlere bakalım."
-        
-        next_field = missing[0]
-        
-        responses = {
-            "email": f"Tamam {name}, mail adresini alabilir miyim?",
-            "memleket": f"Nereli olduğunu sorabilir miyim {name}?",
+        fallbacks = {
+            "şehir": f"Peki {name}, nereli olduğunu sorabilir miyim?",
             "meslek": f"Ne iş yapıyorsun {name}?",
-            "medeni_durum": "Evli misin, bekar mı?",
-            "gelir": "Bütçe olarak nasıl düşünüyorsun?",
+            "medeni": "Evli misin, bekar mı?",
+            "hobi": f"Boş zamanlarında neler yapmayı seversin {name}?",
+            "hayvan": "Evcil hayvanın var mı?",
+            "yaşam": "Sessiz bir ortam mı tercih edersin, yoksa hareketli mi?",
         }
         
-        return responses.get(next_field, f"Devam edelim {name}!")
+        return fallbacks.get(next_topic, f"Devam edelim {name}!")
     
-    def _get_history(self, conversation: Conversation, count: int = 4) -> str:
+    def _get_history(self, conversation: Conversation, count: int = 6) -> str:
         """Get history."""
         recent = conversation.get_recent_messages(count)
         if not recent:
@@ -254,7 +271,7 @@ Yanıt:"""
         
         lines = []
         for msg in recent:
-            role = "K" if msg.role.value == "user" else "S"
+            role = "Kullanıcı" if msg.role.value == "user" else "Ayşe"
             lines.append(f"{role}: {msg.content}")
         return "\n".join(lines)
     
@@ -271,32 +288,52 @@ Yanıt:"""
             parts.append(f"meslek:{profile.profession}")
         if profile.marital_status:
             parts.append(f"durum:{profile.marital_status}")
-        return ", ".join(parts) if parts else "yok"
+        if profile.hobbies:
+            parts.append(f"hobi:{','.join(profile.hobbies)}")
+        return ", ".join(parts) if parts else "henüz bilgi yok"
     
-    def _get_missing(self, profile: UserProfile) -> list:
-        """Get missing fields."""
-        missing = []
+    def _get_next_topic(self, profile: UserProfile) -> str:
+        """Get next conversation topic - lifestyle first, home later."""
+        # First: basic info
         if not profile.name:
-            missing.append("isim")
-        if not profile.email:
-            missing.append("email")
+            return "tanışma/isim"
         if not profile.hometown:
-            missing.append("memleket")
+            return "şehir/memleket"
         if not profile.profession:
-            missing.append("meslek")
+            return "meslek"
         if not profile.marital_status:
-            missing.append("medeni_durum")
-        if not profile.estimated_salary:
-            missing.append("gelir")
-        return missing
+            return "medeni durum"
+        
+        # Then: lifestyle
+        if not profile.hobbies:
+            return "hobi/ilgi alanları"
+        if QuestionCategory.PETS not in profile.answered_categories:
+            return "evcil hayvan"
+        
+        # Then: preferences
+        if not profile.lifestyle_notes:
+            return "yaşam tarzı (sessiz/hareketli)"
+        
+        # Finally: home related (only after knowing the person)
+        if not profile.budget:
+            return "ev düşüncesi/bütçe"
+        if not profile.location:
+            return "ev lokasyonu"
+        
+        return "sohbete devam"
     
-    def _is_complete(self, profile: UserProfile) -> bool:
-        """Check completion."""
+    def _is_really_complete(self, profile: UserProfile) -> bool:
+        """Only complete after knowing the person well + home preferences."""
+        # Need ALL of these to be complete
         return (
             profile.name and
-            profile.email and
             profile.hometown and
-            profile.profession
+            profile.profession and
+            profile.marital_status and
+            profile.hobbies and
+            profile.budget and
+            profile.location and
+            profile.property_preferences
         )
     
     async def _get_or_create_profile(self, session_id: str) -> UserProfile:
