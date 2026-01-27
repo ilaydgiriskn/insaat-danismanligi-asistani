@@ -1,144 +1,143 @@
-"""Analysis agent for generating property recommendations."""
+"""Analysis agent for strategic property guidance and tier assessment."""
 
+import re
+from typing import Optional
 from application.agents.base_agent import BaseAgent
 from domain.entities import UserProfile
 
 
 class AnalysisAgent(BaseAgent):
     """
-    Agent responsible for analyzing user profile and generating recommendations.
+    Agent responsible for analyzing user potential and guiding them toward segments.
     
-    This agent:
-    1. Analyzes complete user profile
-    2. Generates property recommendations
-    3. Provides reasoning and explanations
+    TIERS:
+    - A Paketi: 7 – 9 milyon TL
+    - B Paketi: 9 – 11 milyon TL
+    - C Paketi: 11 – 15 milyon TL
     """
     
     async def execute(self, user_profile: UserProfile) -> dict:
         """
-        Generate property analysis and recommendations.
-        
-        Args:
-            user_profile: Complete user profile
-            
-        Returns:
-            Dict with 'recommendations', 'analysis', 'summary'
+        Produce internal analysis and guidance strategies.
         """
         try:
-            self._log_execution("Generating property analysis")
+            self._log_execution("Performing internal advisor analysis")
             
-            # Build comprehensive profile summary
-            profile_summary = self._build_detailed_profile(user_profile)
+            # 1. Tier Assessment
+            assessment = self._assess_tier(user_profile)
             
-            # Get analysis prompt
-            prompt = self.prompt_manager.get_analysis_prompt(profile_summary)
-            system_message = self.prompt_manager.get_system_message("analysis")
+            # 2. Strategic Guidance Generation
+            # We use the LLM to refine the 'conversational cue' based on the profile
+            prompt = self._build_guidance_prompt(user_profile, assessment)
             
-            # Generate analysis using LLM
-            response = await self.llm_service.generate_structured_response(
+            response = await self.llm_service.generate_response(
                 prompt=prompt,
-                system_message=system_message,
-                response_format={
-                    "summary": "string",
-                    "recommendations": "array",
-                    "key_considerations": "array",
-                    "budget_analysis": "string",
-                    "location_insights": "string",
-                }
+                system_message="Sen kıdemli bir emlak stratejistisin. Kullanıcıya hissettirmeden onu doğru segmente yönlendirecek doğal bir 'danışman tavsiyesi' cümlesi üret.",
+                temperature=0.7,
+                max_tokens=200
             )
             
-            self._log_execution("Analysis completed successfully")
-            
             return {
-                "summary": response.get("summary", ""),
-                "recommendations": response.get("recommendations", []),
-                "key_considerations": response.get("key_considerations", []),
-                "budget_analysis": response.get("budget_analysis", ""),
-                "location_insights": response.get("location_insights", ""),
+                "tier": assessment["tier"],
+                "package_info": assessment["package"],
+                "guidance_cue": response.strip(),
+                "motivation": assessment["motivation"],
+                "is_near_upgrade": assessment["is_near_upgrade"]
             }
             
         except Exception as e:
             self._log_error(e)
-            # Fallback to basic analysis
-            return self._fallback_analysis(user_profile)
-    
-    def _build_detailed_profile(self, user_profile: UserProfile) -> str:
-        """Build comprehensive profile for analysis."""
-        sections = []
+            return self._fallback_guidance(user_profile)
+            
+    def _assess_tier(self, profile: UserProfile) -> dict:
+        """Internal heuristic for tier assignment."""
+        salary_val = 0
+        if profile.estimated_salary:
+            try:
+                # Remove non-numeric chars
+                salary_val = int(re.sub(r'[^\d]', '', profile.estimated_salary))
+            except:
+                pass
         
-        # Header
-        sections.append("=== USER PROFILE ANALYSIS ===\n")
+        profession = (profile.profession or "").lower()
         
-        # Budget
-        if user_profile.budget:
-            budget = user_profile.budget
-            sections.append(f"BUDGET:")
-            sections.append(f"  Range: {budget.min_amount:,} - {budget.max_amount:,} {budget.currency}")
-            sections.append(f"  Average: {(budget.min_amount + budget.max_amount) / 2:,.0f} {budget.currency}")
-            sections.append("")
+        # Default Tier A
+        tier = "A"
+        motivation = "Genel konfor ve aile odaklı başlangıç seviyesi."
+        is_near_upgrade = False
+
+        # Tier C Heuristics
+        if salary_val >= 150000 or any(p in profession for p in ["pilot", "doktor", "yönetic", "ceo", "iş adamı", "iş kadını"]):
+            tier = "C"
+            motivation = "Yüksek gelir ve statü odaklı lüks beklentisi."
+        # Tier B Heuristics
+        elif salary_val >= 80000 or any(p in profession for p in ["mühendis", "avukat", "mimar", "esnaf"]):
+            tier = "B"
+            motivation = "Prestij ve geniş alan arayışı, orta-üst segment."
+            if salary_val >= 130000:
+                is_near_upgrade = True # Close to C
+        else:
+            if salary_val >= 60000:
+                is_near_upgrade = True # Close to B
         
-        # Location
-        if user_profile.location:
-            loc = user_profile.location
-            sections.append(f"LOCATION:")
-            sections.append(f"  City: {loc.city}")
-            if loc.district:
-                sections.append(f"  District: {loc.district}")
-            sections.append(f"  Country: {loc.country}")
-            sections.append("")
-        
-        # Property Preferences
-        if user_profile.property_preferences:
-            prefs = user_profile.property_preferences
-            sections.append(f"PROPERTY PREFERENCES:")
-            sections.append(f"  Type: {prefs.property_type}")
-            if prefs.min_rooms or prefs.max_rooms:
-                sections.append(f"  Rooms: {prefs.min_rooms or 'any'} - {prefs.max_rooms or 'any'}")
-            if prefs.has_balcony is not None:
-                sections.append(f"  Balcony: {'Required' if prefs.has_balcony else 'Not required'}")
-            if prefs.has_parking is not None:
-                sections.append(f"  Parking: {'Required' if prefs.has_parking else 'Not required'}")
-            sections.append("")
-        
-        # Family
-        if user_profile.family_size:
-            sections.append(f"FAMILY:")
-            sections.append(f"  Size: {user_profile.family_size} people")
-            sections.append("")
-        
-        return "\n".join(sections)
-    
-    def _fallback_analysis(self, user_profile: UserProfile) -> dict:
-        """Fallback analysis without LLM."""
-        recommendations = []
-        
-        # Basic recommendation based on profile
-        if user_profile.property_preferences:
-            prop_type = user_profile.property_preferences.property_type
-            recommendations.append(
-                f"Look for {prop_type.value} properties in your specified location"
-            )
-        
-        if user_profile.budget:
-            budget = user_profile.budget
-            recommendations.append(
-                f"Focus on properties within {budget.min_amount:,} - "
-                f"{budget.max_amount:,} {budget.currency} range"
-            )
-        
-        if user_profile.location:
-            recommendations.append(
-                f"Search in {user_profile.location.city} area"
-            )
+        packages = {
+            "A": {
+                "range": "7 - 9 Milyon TL",
+                "focus": "Yaşam odaklı, aile dostu, bütçe korumalı",
+                "pros": "Düşük aidat, merkezi ulaşım",
+                "cons": "Sosyal tesisler sınırlı olabilir"
+            },
+            "B": {
+                "range": "9 - 11 Milyon TL",
+                "focus": "Geniş metrekare, sosyal donatı, modern mimari",
+                "pros": "Havuz, kapalı otopark, fitness",
+                "cons": "Aidat maliyeti biraz daha yüksek"
+            },
+            "C": {
+                "range": "11 - 15 Milyon TL",
+                "focus": "Lüks, özel tasarım, akıllı ev, yatırım değeri",
+                "pros": "Geniş bahçe/teras, özel güvenlik, yüksek prim potansiyeli",
+                "cons": "Yüksek giriş maliyeti"
+            }
+        }
         
         return {
-            "summary": "Basic property recommendations based on your profile",
-            "recommendations": recommendations,
-            "key_considerations": [
-                "Verify property documents",
-                "Check neighborhood amenities",
-                "Consider future resale value"
-            ],
-            "budget_analysis": "Budget range is appropriate for the selected location",
-            "location_insights": "Selected location offers good residential options",
+            "tier": tier,
+            "package": packages[tier],
+            "motivation": motivation,
+            "is_near_upgrade": is_near_upgrade
+        }
+
+    def _build_guidance_prompt(self, profile: UserProfile, assessment: dict) -> str:
+        """Prompt for generating professional conversational cues."""
+        pkg = assessment["package"]
+        upgrade_text = "Kullanıcı bir üst segmente yakın, onu çok hafifçe yukarıya teşvik et." if assessment["is_near_upgrade"] else ""
+        
+        return f"""
+KULLANICI PROFİLİ:
+- Meslek: {profile.profession or 'Belirsiz'}
+- Maaş: {profile.estimated_salary or 'Belirsiz'}
+- Medeni Durum: {profile.marital_status or 'Belirsiz'}
+- Hobiler: {', '.join(profile.hobbies) if profile.hobbies else 'Belirsiz'}
+
+ANALİZİMİZ:
+- SEGMENT: {assessment['tier']} Paketi ({pkg['range']})
+- ODAK NOKTASI: {pkg['focus']}
+- {upgrade_text}
+
+GÖREV:
+Bu kullanıcıya bir sonraki cümlesinde kullanılmak üzere, {assessment['tier']} segmentindeki avantajları veya {assessment['tier']}'den bir üst segmente geçmenin mantığını vurgulayan SAMİMİ ve DANIŞMANCA bir cümle üret. 
+Asla "A Paketi" veya "Bütçeniz bu" gibi teknik terimler kullanma. 
+"Sizin gibi biri genelde..." veya "Aslında bir tık daha..." gibi doğal kalıplar kullan.
+Yanıt sadece 1 cümle olsun.
+"""
+
+    def _fallback_guidance(self, user_profile: UserProfile) -> dict:
+        """Safe fallback strategy."""
+        return {
+            "tier": "A",
+            "package_info": {"range": "7-9M TL", "focus": "Essential living"},
+            "guidance_cue": "Sizin gibi aile odaklı kişiler genelde konfor ve güvenliği ön planda tutan projelerimizi çok seviyor.",
+            "motivation": "Temel analiz",
+            "is_near_upgrade": False
         }

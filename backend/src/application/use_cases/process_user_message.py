@@ -15,44 +15,34 @@ from infrastructure.config import get_logger
 
 GREETINGS = {'merhaba', 'selam', 'selamlar', 'mrb', 'slm', 'hey', 'hi', 'sa', 'merhabalar', 'naber'}
 
-SYSTEM_PROMPT = """Sen samimi bir AI emlak danışmanı asistanısın.
+SYSTEM_PROMPT = """Sen samimi ve bilge bir AI emlak danışmanı/stratejistisin.
 
-KİMLİĞİN:
-- Adın YOK, sadece "AI asistan"
-- "Senin adın ne?" → "Ben AI emlak asistanıyım"
+PERSONAN:
+- Adın yok, bir "AI Danışman"sın.
+- Robotik değilsin, bir arkadaş gibi ama profesyonel bir vizyonla konuşursun.
+- Kullanıcıyı bir forma sokmaya değil, onun yaşam tarzına en uygun evi bulmaya odaklısın.
 
-ZORUNLU BİLGİLER (sırayla topla):
-1. İsim, şehir, meslek
-2. Medeni durum, çocuk sayısı
-3. Hobi (kısaca)
-4. ✓ Mail adresi (MUTLAKA)
-5. ✓ Telefon (MUTLAKA)
-6. ✓ Aylık gelir/maaş (MUTLAKA)
-7. ✓ Kaç odalı ev istediği (MUTLAKA)
-8. Hedef şehir (taşınacaksa)
+TEMEL GÖREVİN:
+1. Kullanıcıyı tanı (İsim, meslek, hobiler, aile durumu vb.)
+2. Kullanıcının fark etmediği detayları yakala ve ona samimi sorular sor.
+3. Arka plandaki segment analizine uygun şekilde (A, B, C paketleri), kullanıcıyı hafifçe ve doğal bir şekilde doğru yöne çek.
+4. Eğer kullanıcı bir segmentin sınırındaysa, küçük avantajlar sunarak (yatırım değeri, yaşam kalitesi vb.) bir üst segmente teşvik et.
 
-YASAK KONULAR:
-❌ İç dekorasyon detayları
-❌ Oda tasarımı (pilot temalı vb.)
-❌ Mobilya, renk, stil
-❌ Mimarlık detayları
-→ Sadece GENEL bilgi topla (kaç oda, bahçe var mı gibi)
-
-HAFIZA KURALLARI:
-- Kullanıcının söylediği HER ŞEYİ hatırla
-- Zaten bilinenler EKSİK listesinde GÖRÜNMEMELİ
-- Çocuk yaşı söylediyse UNUTMA
+KESİNLİKLE YAPILMAYACAKLAR:
+❌ "Analizime göre", "Sizi B paketine alıyorum" gibi ifadeler ASLA kullanma.
+❌ İç dekorasyon, oda rengi, mobilya detayı sorma.
+❌ Form doldurur gibi sıralı sorular sorma. Sohbetin akışına bırak.
 
 SOHBET TARZI:
-- 3-4 cümle
-- Doğal, samimi
-- Zorlamadan geç
+- Akıcı, empati kuran, bilge.
+- 3-4 cümle.
+- Kullanıcının hobilerine/yaşamına atıfta bulun.
 
-Türkçe, odaklı, hafızalı."""
+Türkçe, stratejik, samimi."""
 
 
 class ProcessUserMessageUseCase:
-    """Natural conversation with strong memory."""
+    """Advanced real estate consultant with strategic guidance."""
     
     # Turkish cities for fuzzy matching
     CITIES = [
@@ -78,27 +68,27 @@ class ProcessUserMessageUseCase:
         self.logger = get_logger(self.__class__.__name__)
     
     async def execute(self, session_id: str, user_message: str) -> dict:
-        """Process message with strong memory."""
+        """Process message with strategic advisor logic."""
         try:
             profile = await self._get_or_create_profile(session_id)
             conversation = await self._get_or_create_conversation(profile.id)
             
             conversation.add_user_message(user_message)
             
-            # Extract ALL possible info
+            # 1. Extract info from current message
             self._extract_all_info(profile, user_message)
+            
+            # 2. Perform strategic analysis (internal)
+            advisor_analysis = await self.analysis_agent.execute(profile)
             
             await self.user_repo.update(profile)
             await self.conversation_repo.update(conversation)
             
-            # Log current state
-            self.logger.info(f"STATE: name={profile.name}, city={profile.hometown}, job={profile.profession}")
-            
-            # Get missing info
+            # Get missing info for context
             missing = self._get_missing_info(profile)
             
-            # Generate response
-            response = await self._generate_response(profile, conversation, missing)
+            # 3. Generate response with Advisor Context
+            response = await self._generate_response(profile, conversation, missing, advisor_analysis)
             
             conversation.add_assistant_message(response)
             await self.conversation_repo.update(conversation)
@@ -356,11 +346,15 @@ class ProcessUserMessageUseCase:
         
         return missing
     
-    async def _generate_response(self, profile: UserProfile, conversation: Conversation, missing: list) -> str:
-        """Generate with focus on ESSENTIAL info."""
+    async def _generate_response(self, profile: UserProfile, conversation: Conversation, missing: list, advisor_analysis: dict) -> str:
+        """Generate with focus on ESSENTIAL info and Advisor Guidance."""
         try:
             history = self._get_history(conversation, 8)
             memory = self._get_detailed_memory(profile)
+            
+            # Advisor Context
+            pkg = advisor_analysis.get("package_info", {})
+            guidance = advisor_analysis.get("guidance_cue", "")
             
             # Separate essential from optional
             essential = [m for m in missing if 'zorunlu' in m]
@@ -377,19 +371,36 @@ class ProcessUserMessageUseCase:
             
             known_str = ", ".join(known_items) if known_items else ""
             
-            message_text = f"KULLANICI HAKKINDA BİLİNENLER:\n{memory}\n\nSON SOHBET:\n{history}\n\nZORUNLU EKSİK BİLGİLER (öncelik): {', '.join(essential) if essential else 'Tamamlandı'}\nDİĞER EKSİK: {', '.join(optional) if optional else 'Tamam'}\n\nGÖREV:\nKullanıcının son mesajına samimi yanıt ver ve SONRAKİ eksik bilgiyi öğren.\n\nKRİTİK KURALLAR:\n- İÇ DEKORASYON, TASARIM, MOBİLYA KONUŞMA!\n- Sadece genel bilgi topla\n- Zaten bilinen şeyleri ASLA tekrar sorma\n- 3-4 cümle\n- Adın yok\n\nBİLİNEN: {known_str}\n\nYanıt:"
+            message_text = f"""KULLANICI HAKKINDA BİLİNENLER:
+{memory}
+
+STRATEJİK DANIŞMAN ANALİZİ (GİZLİ):
+- Hedef Segment: {advisor_analysis.get('tier', 'A')} ({pkg.get('range', '7-9M')})
+- Odak: {pkg.get('focus', 'Konfor')}
+- Önerilen Yönlendirme: "{guidance}"
+
+SON SOHBET:
+{history}
+
+EKSİK BİLGİLER: {', '.join(missing) if missing else 'Tamamlandı'}
+
+GÖREV:
+Kullanıcının son mesajına samimi yanıt ver. Stratejik yönlendirmeyi doğal bir şekilde cümleye yedir. Hem kullanıcıyı tanı hem de onu doğru segmente ısındır. 
+Robofik olma, analizden bahsetme.
+
+Yanıt:"""
 
             response = await self.question_agent.llm_service.generate_response(
                 prompt=message_text,
                 system_message=SYSTEM_PROMPT,
                 temperature=0.8,
-                max_tokens=150
+                max_tokens=250
             )
             
             result = response.strip()
             
             # Remove prefix
-            if ":" in result and result.split(":")[0] in ["A", "Ayşe", "Bot", "Asistan"]:
+            if ":" in result and result.split(":")[0] in ["A", "Ayşe", "Bot", "Asistan", "Danışman"]:
                 result = result.split(":", 1)[1].strip()
             
             return result
@@ -406,8 +417,8 @@ class ProcessUserMessageUseCase:
                 pass
                 
             if not profile.name:
-                return "Merhaba! Ben AI emlak asistanıyım. Adın ne?"
-            return f"{profile.name}, devam edelim. Hangi şehirde ev arıyorsun?"
+                return "Devam edelim, isminiz nedir?"
+            return f"{profile.name}, sizin için en uygun seçenekleri netleştirmek harika olacak. Hangi bölge size daha yakın hissettiriyor?"
     
     def _get_history(self, conversation: Conversation, count: int = 8) -> str:
         """Get detailed history."""
