@@ -1,0 +1,22 @@
+# FastAPI and web framework
+fastapi==0.115.1
+uvicorn[standard]==0.32.0
+python-multipart==0.0.12
+
+# Pydantic for data validation
+pydantic==2.9.2
+pydantic-settings==2.6.0
+
+# Database
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+
+# LangChain and AI
+langchain==0.3.7
+langchain-openai==0.2.8
+openai==1.54.4
+
+# Utilities
+python-dotenv==1.0.1
+httpx<0.28.0
