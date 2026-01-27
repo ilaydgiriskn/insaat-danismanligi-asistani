@@ -16,24 +16,23 @@ from infrastructure.llm import InformationExtractor
 
 GREETINGS = {'merhaba', 'selam', 'selamlar', 'mrb', 'slm', 'hey', 'hi', 'sa', 'merhabalar', 'naber'}
 
-SYSTEM_PROMPT = """Sen samimi ve bilge bir AI emlak danışmanı/stratejistisin.
+SYSTEM_PROMPT = """Sen bilge, samimi ve NET bir AI emlak danışmanısın. Gereksiz laf kalabalığından kaçınan, her cümlesiyle bir amaca hizmet eden profesyonel bir vizyonun var.
 
 PERSONAN:
-- Adın yok, bir "AI Danışman"sın. Robofik değilsin, bir arkadaş gibi ama profesyonel bir vizyonla konuşursun.
-- Kullanıcıyı bir forma sokmaya değil, onun yaşam tarzına en uygun evi bulmaya odaklısın.
-- Kullanıcıyı asla analiz ettiğini veya bir segmente (A, B, C) yerleştirdiğini belli etme.
+- Adın yok, bir "AI Danışman"sın. Robofik değilsin ama "geveze" de değilsin.
+- Bilge bir dost gibi kısa, öz ve derinlikli konuşursun.
 
-TEMEL GÖREVİN:
-1. Kullanıcıyı tanı (İsim, meslek, hobiler, aile durumu vb.) ama bunu doğrudan sorarak değil, sohbet içinden yakala.
-2. Kullanıcının fark etmediği detayları yakala ve ona samimi, dolaylı sorular sor.
-3. Stratejik Analiz kısmındaki 'Yönlendirme' (guidance_cue) bilgisini cevabının içine doğal bir şekilde yedir.
+STRATEJİN:
+1. **BİLGE KISALIK KURALI**: Kullanıcının verdiği bilgiyi (Örn: Spor) yarım cümlede onayla ve hemen emlak karşılığını (Örn: Parka yakınlık) söyleyip YENİ bir soruya geç. Asla lafı uzatma.
+2. **RELEVANCE HARDENING (ALAKA FİLTRESİ)**: Hobilerin emlakla ilgisi olmayan detaylarına (Hangi kitap, kitabı nereden alırsın, hangi gitar markası vb.) girmek KESİNLİKLE YASAKTIR. Sadece fiziksel alan ihtiyacına (Sessizlik, oda sayısı, balkon vb.) odaklan.
+3. **DOĞAL AKIŞ**: Cevabın samimi olsun ama form doldurur gibi hissettirmesin. Gereksiz övgü ve onay cümlelerini (Harika, çok güzel vb.) minimuma indir.
 
 SOHBET TARZI:
-- Akıcı, empati kuran, bilge.
-- En fazla 2-3 cümle.
-- Kullanıcının hobilerine/yaşamına atıfta bulun.
+- Akıcı, bilge ve son derece odaklanmış.
+- Maksimum 2-3 cümle. Her cümle bir bilgi vermeli veya bir bilgi almalı.
+- Boş sohbet (Peki ya siz?, Nasılsınız? vb.) yasaktır.
 
-Türkçe, stratejik, samimi."""
+Türkçe, samimi, bilge ve NET."""
 
 
 class ProcessUserMessageUseCase:
@@ -85,21 +84,29 @@ class ProcessUserMessageUseCase:
             await self.user_repo.update(profile)
             await self.conversation_repo.update(conversation)
             
-            # Get missing info for context
+            # 3. Check for Phase Transition (Agent 2)
+            # Use ValidationAgent to see if we are ready for final recommendations
+            validation_result = await self.validation_agent.execute(profile)
+            is_ready = validation_result.get("is_ready_for_analysis", False)
+            
+            # Get missing info for context (used in Agent 1 phase)
             missing = self._get_missing_info(profile)
             
-            # 3. Generate response with Advisor Context
-            response = await self._generate_response(profile, conversation, missing, advisor_analysis)
+            if is_ready:
+                # PHASE 2: Full Recommendation (Agent 2)
+                self.logger.info(f"Transitioning to Agent 2 (Full Analysis) for user {profile.name}")
+                response = await self.analysis_agent.generate_full_analysis(profile)
+            else:
+                # PHASE 1: Information Gathering / Discovery (Agent 1)
+                response = await self._generate_response(profile, conversation, missing, advisor_analysis)
             
             conversation.add_assistant_message(response)
             await self.conversation_repo.update(conversation)
             
-            is_complete = not missing
-            
             return {
                 "response": response,
-                "type": "analysis" if is_complete else "question",
-                "is_complete": is_complete,
+                "type": "analysis" if is_ready else "question",
+                "is_complete": is_ready,
                 "category": None,
             }
             
@@ -134,7 +141,11 @@ class ProcessUserMessageUseCase:
             
             if extracted_info.get("budget"):
                 from domain.value_objects import Budget
-                profile.budget = Budget(min_amount=int(extracted_info["budget"]), max_amount=int(extracted_info["budget"]) * 1.2, currency="TL")
+                try:
+                    b_val = int(extracted_info["budget"])
+                    profile.budget = Budget(min_amount=b_val, max_amount=b_val * 1.2, currency="TL")
+                except:
+                    pass
             
             if extracted_info.get("location"):
                 from domain.value_objects import Location
@@ -433,17 +444,17 @@ class ProcessUserMessageUseCase:
             
             if not is_mature:
                 phase_instruction = """Şu an TANIŞMA aşamasındasın. 
-- ASLA evlerden, fiyatlardan, paketlerden veya yatırımdan bahsetme.
-- Sadece kullanıcıyı tanımaya, hobilerini, alışkanlıklarını veya hayata bakışını anlamaya odaklan.
-- Eğer kullanıcı ev sorduysa, nazikçe 'Sizi daha iyi tanıdıktan sonra en doğru seçeneği bulacağız' diyerek konuyu yaşam tarzına çek."""
+- ASLA evlerden, fiyatlardan veya bütçe yeterliliğinden bahsetme.
+- Sadece samimi bir sohbet kur ve hobileri yaşam alanına bağla."""
             else:
-                phase_instruction = """Şu an YÖNLENDİRME aşamasındasın.
-- Tavsiye edilen yönlendirmeyi (guidance_cue) doğal bir şekilde cümlene ekle.
-- Kullanıcıyı hissettirmeden doğru segmente (A, B, C) ısındır."""
+                phase_instruction = f"""Şu an YÖNLENDİRME aşamasındasın.
+- Tavsiye edilen yönlendirmeyi (guidance_cue) doğal bir şekilde cümlene ekle: "{guidance}"
+- KESİNLİKLE "A segmenti", "B paketi" gibi terimler kullanma. Sadece özellikleri anlat.
+- Bütçe 7M altındaysa (Örn: 6M), onu 7M bandındaki (Tier A) ferahlığın hayatını nasıl değiştireceğine nazikçe ikna et."""
 
             message_text = f"""BİLGE DANIŞMAN ANALİZİ:
 - Mevcut Profil: {known_str}
-- Tavsiye Edilen Yönlendirme (Cevaba yedirilecek): "{guidance}"
+- Tavsiye Edilen Yönlendirme: "{guidance}"
 - Profil Olgunluğu: {"Olgun" if is_mature else "Henüz Tanışma"}
 
 {phase_instruction}
@@ -454,9 +465,10 @@ SON SOHBET:
 EKSİK BİLGİ ALANLARI: {', '.join(missing) if missing else 'Kritik veriler tam.'}
 
 GÖREV:
-1. Kullanıcının son mesajına BILGECE ve SAMİMİ bir yanıt ver.
-2. Eksik bilgilerden birini öğrenmek için DOLAYLI bir soru sor (Doğrudan soru sorma!).
-3. Cevap çok kısa (en fazla 2-3 cümle) olsun.
+1. Kullanıcının son mesajına BILGECE ve NET bir yanıt ver.
+2. Hobiyi/Mesleği sadece gayrimenkul ihtiyacı bazında yorumla (Balkon, oda, sessizlik).
+3. Detaylara (Kitap türü, satın alma alışkanlığı vb.) ASLA girme.
+4. CEVAP ÖZ VE EREĞE UYGUN OLSUN (2-3 cümle). Boş cümle kurma.
 
 Yanıt:"""
 

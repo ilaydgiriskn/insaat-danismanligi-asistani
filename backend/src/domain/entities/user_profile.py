@@ -96,18 +96,11 @@ class UserProfile:
     
     def is_complete(self) -> bool:
         """
-        Check if profile has minimum required information.
-        
-        Minimum requirements:
-        - Budget
-        - Location
-        - Property type
+        Check if profile has sufficient information for full analysis.
         """
-        return (
-            self.budget is not None
-            and self.location is not None
-            and self.property_preferences is not None
-        )
+        has_basic = bool(self.name and (self.profession or self.hometown) and self.marital_status and self.hobbies)
+        has_property = bool(self.budget and self.location and self.property_preferences and self.property_preferences.min_rooms)
+        return has_basic and has_property
     
     def _mark_updated(self) -> None:
         """Mark the entity as updated."""

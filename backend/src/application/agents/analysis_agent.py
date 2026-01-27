@@ -24,7 +24,8 @@ class AnalysisAgent(BaseAgent):
             self._log_execution("Performing internal advisor analysis")
             
             # 1. Tier Assessment
-            is_profile_mature = bool(user_profile.name and (user_profile.profession or user_profile.hometown))
+            # Profile is mature only if we have: Name, Profession/Hometown, Marital Status AND Hobbies
+            is_profile_mature = user_profile.is_complete()
             assessment = self._assess_tier(user_profile)
             
             # 2. Strategic Guidance Generation
@@ -33,7 +34,7 @@ class AnalysisAgent(BaseAgent):
             
             response = await self.llm_service.generate_response(
                 prompt=prompt,
-                system_message="Sen kıdemli bir emlak stratejistisin. Kullanıcıyla tanışma aşamasında isen onu tanımaya yönelik, tanışma bitti ise onu doğru segmente yönlendirecek doğal bir cümle üret.",
+                system_message="Sen kıdemli bir emlak stratejistisin. İnsan psikolojisinden iyi anlıyorsun. Tanışma aşamasında isen sadece kullanıcıyı tanımaya yönelik, tanışma bitti ise onu doğru segmente (A, B, C) çekmeye yönelik samimi bir cümle üret.",
                 temperature=0.7,
                 max_tokens=200
             )
@@ -51,8 +52,55 @@ class AnalysisAgent(BaseAgent):
             self._log_error(e)
             return self._fallback_guidance(user_profile)
             
+    async def generate_full_analysis(self, user_profile: UserProfile) -> str:
+        """
+        Final phase: Generate a comprehensive, personalized property recommendation.
+        """
+        try:
+            assessment = self._assess_tier(user_profile)
+            pkg = assessment["package"]
+            
+            prompt = f"""
+KULLANICI PROFİLİ:
+- İsim: {user_profile.name}
+- Meslek: {user_profile.profession}
+- Lokasyon: {user_profile.location.city if user_profile.location else user_profile.hometown}
+- Medeni Durum: {user_profile.marital_status}
+- Hobiler: {', '.join(user_profile.hobbies)}
+- Bütçe: {user_profile.budget.max_amount if user_profile.budget else 'Belirsiz'} TL
+
+SEÇİLEN SEGMENT: {assessment['tier']} Paketi ({pkg['range']})
+SEGMENT ODAĞI: {pkg['focus']}
+
+GÖREV:
+Bu kullanıcıya özel, samimi, bilgece ve heyecan verici bir "Final Önerisi" hazırla.
+- Kullanıcıya ismen hitap et.
+- Neden bu segmentin (A, B veya C) ona çok uygun olduğunu, hobilerine ve yaşam tarzına atıfta bulunarak açıkla.
+- "X paketi size uygun" gibi soğuk terimler yerine, "Sizin için seçtiğim bu yaşam konsepti..." gibi sahiplenici bir dil kullan.
+- Evin artılarını (bahçe, oda sayısı, konum) onun hayalleriyle birleştir.
+- Tonun bilgece, güven verici ve vizyoner olsun.
+- Yanıt 4-5 cümlelik zengin bir metin olsun.
+"""
+            
+            response = await self.llm_service.generate_response(
+                prompt=prompt,
+                system_message="Sen kıdemli bir emlak stratejistisin. Kullanıcıyı tanıdın ve şimdi ona hayatının evini sunuyorsun. Vizyoner ve etkileyici bir dil kullan.",
+                temperature=0.8,
+                max_tokens=400
+            )
+            
+            return response.strip()
+            
+        except Exception as e:
+            self._log_error(e)
+            return f"Sayın {user_profile.name}, yaşam tarzınıza en uygun seçenekleri titizlikle hazırlıyoruz."
+            
     def _assess_tier(self, profile: UserProfile) -> dict:
         """Internal heuristic for tier assignment with risk appetite and motivation."""
+        budget_val = 0
+        if profile.budget:
+            budget_val = profile.budget.max_amount or profile.budget.min_amount or 0
+        
         salary_val = 0
         if profile.estimated_salary:
             try:
@@ -64,24 +112,36 @@ class AnalysisAgent(BaseAgent):
         profession = (profile.profession or "").lower()
         marital_status = (profile.marital_status or "").lower()
         
-        # Default Tier A
+        # Default Tier A (7-9M)
         tier = "A"
         motivation = "Yaşam konforu ve başlangıç seviyesi bir yatırım."
         is_near_upgrade = False
 
-        # Tier C Heuristics (High potential or status)
-        if salary_val >= 150000 or any(p in profession for p in ["pilot", "doktor", "yönetic", "ceo", "iş adamı", "iş kadını", "mimar"]):
-            tier = "C"
-            motivation = "Lüks, özel tasarım ve yüksek yatırım potansiyeli."
-        # Tier B Heuristics (Established professional)
-        elif salary_val >= 80000 or any(p in profession for p in ["mühendis", "avukat", "esnaf", "yazılımcı"]):
-            tier = "B"
-            motivation = "Prestij, geniş sosyal donatı ve modern yaşam."
-            if salary_val >= 130000 or marital_status == "evli":
-                is_near_upgrade = True # Close to C/Higher value
+        # Budget-based primary assessment
+        if budget_val > 0:
+            if budget_val < 7000000:
+                tier = "A"
+                is_near_upgrade = True # Force upgrade focus to reach the 7M floor
+                motivation = "Bütçeyi bir tık esneterek kaliteli bir yaşama adım atma potansiyeli."
+            elif 7000000 <= budget_val < 9000000:
+                tier = "A"
+            elif 9000000 <= budget_val < 11000000:
+                tier = "B"
+            elif budget_val >= 11000000:
+                tier = "C"
         else:
-            if salary_val >= 60000:
-                is_near_upgrade = True # Close to B
+            # Fallback to salary/profession if budget not declared
+            if salary_val >= 150000 or any(p in profession for p in ["pilot", "doktor", "ceo", "yönetic", "iş adamı", "iş kadını", "mimar"]):
+                tier = "C"
+                motivation = "Lüks, özel tasarım ve yüksek yatırım potansiyeli."
+            elif salary_val >= 80000 or any(p in profession for p in ["mühendis", "avukat", "esnaf", "yazılımcı"]):
+                tier = "B"
+                motivation = "Prestij, geniş sosyal donatı ve modern yaşam."
+                if salary_val >= 130000 or marital_status == "evli":
+                    is_near_upgrade = True
+            else:
+                if salary_val >= 60000:
+                    is_near_upgrade = True
 
         packages = {
             "A": {

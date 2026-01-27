@@ -29,12 +29,13 @@ Konuşma Geçmişi (Sondan başa doğru):
 {conversation_history}
 
 GÖREV:
-1. Kullanıcının verdiği net bilgileri (isim, email, meslek, medeni durum vb.) çıkar.
-2. Bağlamsal Cevaplar: Eğer son soru "Çocuğunuz var mı?" ise ve mesaj "Evet" ise, `has_children` değerini `true` yap. Bu mantığı tüm sorular için uygula.
-3. 'answered_categories' listesine, mesajda cevabı bulunan kategorileri (name, budget, family vb.) ekle.
-4. Çıkarımlar: `estimated_salary_range` (meslekten) ve `lifestyle_notes` (hobilerden) alanlarını doldur.
+1. Kullanıcının verdiği net bilgileri çıkar.
+2. **Medeni Durum (marital_status)**: "evleneceğim", "nişanlıyım", "sevgilimle yaşayacağım" gibi ifadeleri "evli/nişanlı" kategorisine yönlendir. 
+3. **Bütçe ve Oda**: Rakamları netleştir. "6 milyon" -> 6000000.
+4. 'answered_categories' listesine, mesajda cevabı bulunan kategorileri ekle.
+5. Çıkarımlar: `estimated_salary_range` (meslekten) ve `lifestyle_notes` (hobilerden) alanlarını doldur.
 
-Cevap formatı kesinlikle JSON olmalıdır."""
+Cevap formatı kesinlikle JSON olmalıdır. Boş kalan yerleri `null` yap. kategoriler: name, budget, location, rooms, profession, hometown, marital_status, has_children, hobbies, etc."""
 
         try:
             response = await self.llm_service.generate_structured_response(
