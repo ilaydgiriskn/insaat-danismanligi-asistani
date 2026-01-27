@@ -18,33 +18,37 @@ GREETINGS = {'merhaba', 'selam', 'selamlar', 'mrb', 'slm', 'hey', 'hi', 'sa', 'm
 SYSTEM_PROMPT = """Sen samimi bir AI emlak danışmanı asistanısın.
 
 KİMLİĞİN:
-- Adın YOK, sadece "AI asistan" veya "emlak asistanı"
-- Kullanıcı "senin adın ne" sorarsa: "Ben AI emlak asistanıyım" de
+- Adın YOK, sadece "AI asistan"
+- "Senin adın ne?" → "Ben AI emlak asistanıyım"
+
+ZORUNLU BİLGİLER (sırayla topla):
+1. İsim, şehir, meslek
+2. Medeni durum, çocuk sayısı
+3. Hobi (kısaca)
+4. ✓ Mail adresi (MUTLAKA)
+5. ✓ Telefon (MUTLAKA)
+6. ✓ Aylık gelir/maaş (MUTLAKA)
+7. ✓ Kaç odalı ev istediği (MUTLAKA)
+8. Hedef şehir (taşınacaksa)
+
+YASAK KONULAR:
+❌ İç dekorasyon detayları
+❌ Oda tasarımı (pilot temalı vb.)
+❌ Mobilya, renk, stil
+❌ Mimarlık detayları
+→ Sadece GENEL bilgi topla (kaç oda, bahçe var mı gibi)
+
+HAFIZA KURALLARI:
+- Kullanıcının söylediği HER ŞEYİ hatırla
+- Zaten bilinenler EKSİK listesinde GÖRÜNMEMELİ
+- Çocuk yaşı söylediyse UNUTMA
 
 SOHBET TARZI:
+- 3-4 cümle
 - Doğal, samimi
-- 3-5 cümle
-- Kullanıcıyı zorlamıyorsun
+- Zorlamadan geç
 
-ÇOK ÖNEMLİ - HAFIZA:
-- Kullanıcının söylediği HER ŞEYİ hatırla
-- ZATen bilinenAĞ ASLA tekrar sorma
-- Meslek söylediyse bir daha sorma
-- Şehir söylediyse bir daha sorma
-
-BİLİNEN BİLGİLERİ KULLAN:
-- "Yazılım sektörü zor iş" değil, "Yazılım sektörü zor iş, demiştjn" de
-- Geçmiş mesajlara atıfta bulun
-
-EV KONUSU:
-- "Ev arayışındasınız" KULLANMA
-- Yumuşak ol: "Farklı bir yerde yaşamayı düşünür müsün?"
-
-TEKRAR ETME:
-- Aynı soruyu iki kez sorma
-- Kullanıcı cevap verdiyse kaydet ve geç
-
-Türkçe, samimi, HAFIZALI."""
+Türkçe, odaklı, hafızalı."""
 
 
 class ProcessUserMessageUseCase:
@@ -271,11 +275,73 @@ class ProcessUserMessageUseCase:
         if email and not profile.email:
             profile.email = email.group()
             profile.answered_categories.add(QuestionCategory.EMAIL)
+            self.logger.info(f"✓ Extracted email: {profile.email}")
+        
+        # PHONE NUMBER
+        if not profile.phone_number:
+            phone_patterns = [
+                r'(\+90\s?\d{3}\s?\d{3}\s?\d{2}\s?\d{2})',  # +90 555 123 45 67
+                r'(0\d{3}\s?\d{3}\s?\d{2}\s?\d{2})',        # 0555 123 45 67
+                r'(\d{10})',                                 # 5551234567
+            ]
+            for pattern in phone_patterns:
+                match = re.search(pattern, msg.replace('-', '').replace('(', '').replace(')', ''))
+                if match:
+                    profile.phone_number = match.group(1)
+                    profile.answered_categories.add(QuestionCategory.PHONE_NUMBER)
+                    self.logger.info(f"✓ Extracted phone: {profile.phone_number}")
+                    break
+        
+        # SALARY/INCOME
+        if not profile.estimated_salary:
+            salary_patterns = [
+                r'(\d+)\s*(bin|k)',                          # 50 bin, 50k
+                r'maaş[ıi]m?\s+(\d+)',                      # maaşım 50000
+                r'gelir[im]?\s+(\d+)',                       # gelirim 50
+                r'(\d+)\s*tl',                               # 50000 TL
+            ]
+            for pattern in salary_patterns:
+                match = re.search(pattern, clean)
+                if match:
+                    amount = match.group(1)
+                    try:
+                        salary = int(amount)
+                        # Normalize
+                        if 'bin' in clean or 'k' in clean:
+                            salary = salary * 1000
+                        elif salary < 1000:  # Probably in thousands
+                            salary = salary * 1000
+                        profile.estimated_salary = salary
+                        self.logger.info(f"✓ Extracted salary: {salary}")
+                        break
+                    except:
+                        pass
+        
+        # ROOM COUNT
+        if not profile.property_preferences or not profile.property_preferences.min_rooms:
+            room_patterns = [
+                r'(\d+)\s*(oda|odalı)',
+                r'(\d+)\+\d+',  # 3+1
+            ]
+            for pattern in room_patterns:
+                match = re.search(pattern, clean)
+                if match:
+                    rooms = int(match.group(1))
+                    from domain.value_objects import PropertyPreferences
+                    from domain.enums import PropertyType
+                    profile.property_preferences = PropertyPreferences(
+                        property_type=PropertyType.APARTMENT,
+                        min_rooms=rooms
+                    )
+                    self.logger.info(f"✓ Extracted rooms: {rooms}")
+                    break
+
     
     def _get_missing_info(self, profile: UserProfile) -> list:
-        """Get missing info."""
+        """Get missing info - ESSENTIAL first."""
         missing = []
         
+        # Basic identity
         if not profile.name:
             missing.append("isim")
         if not profile.hometown:
@@ -286,61 +352,75 @@ class ProcessUserMessageUseCase:
             missing.append("medeni durum")
         
         if profile.marital_status == "evli" and profile.has_children is None:
-            missing.append("çocuk")
+            missing.append("çocuk var mı")
         
+        # Quick lifestyle check
         if not profile.hobbies and QuestionCategory.HOBBIES not in profile.answered_categories:
-            missing.append("hobi/ilgi alanları")
+            missing.append("hobi (kısaca)")
         
-        # Home questions later
-        basic_done = profile.name and profile.hometown and profile.profession
-        if basic_done:
-            if not profile.budget:
-                missing.append("yaşam tercihleri")
-            if not profile.location:
-                missing.append("taşınma düşüncesi")
+        # ESSENTIAL INFO - PRIORITY
+        if not profile.email:
+            missing.append("✓ EMAIL (zorunlu)")
+        if not profile.phone_number:
+            missing.append("✓ TELEFON (zorunlu)")
+        if not profile.estimated_salary:
+            missing.append("✓ AYLIK GELİR/MAAŞ (zorunlu)")
+        
+        # Home requirements
+        if not profile.property_preferences or not profile.property_preferences.min_rooms:
+            missing.append("✓ KAÇ ODALI EV (zorunlu)")
+        
+        if not profile.location:
+            missing.append("taşınma düşüncesi/hedef şehir")
+        
+        if not profile.budget:
+            missing.append("bütçe aralığı")
         
         return missing
     
     async def _generate_response(self, profile: UserProfile, conversation: Conversation, missing: list) -> str:
-        """Generate with STRONG memory awareness."""
+        """Generate with focus on ESSENTIAL info."""
         try:
             history = self._get_history(conversation, 8)
             memory = self._get_detailed_memory(profile)
             
-            prompt = f"""KULLANICI HAKKINDA BİLİNENLER (ÇOK ÖNEMLİ - BUNLARI ASLA TEKRAR SORMA):
+            # Separate essential from optional
+            essential = [m for m in missing if '✓' in m]
+            optional = [m for m in missing if '✓' not in m]
+            
+            prompt = f"""KULLANICI HAKKINDA BİLİNENLER:
 {memory}
 
-SON SOHBET (kullanıcının verdiği tüm cevaplar burada):
+SON SOHBET:
 {history}
 
-EKSİK BİLGİLER: {', '.join(missing) if missing else 'Temel bilgiler tamam'}
+ZORUNLU EKSİK BİLGİLER (öncelik): {', '.join(essential) if essential else 'Tamamlandı'}
+DİĞER EKSİK: {', '.join(optional) if optional else 'Tamam'}
 
 GÖREV:
-Kullanıcının son mesajına samimi yanıt ver ve eksik bilgilerden birini öğren.
+Kullanıcının son mesajına samimi yanıt ver ve SONRAKİ eksik bilgiyi öğren.
 
 KRİTİK KURALLAR:
-- BİLİNEN bilgileri ASLA tekrar sorma!
-- Kullanıcı zaten cevap verdiyse GEÇMEDE görünüyor, tekrar sorma!
-- 3-5 cümle
-- Adın yok, sadece "AI asistan" de
-- Doğal geçişler
+- İÇ DEKORASYON, TASARIM, MOBİLYA KONUŞMA! (pilot temalı oda vb. YASAK)
+- Sadece genel bilgi topla (kaç oda, bahçe var mı)
+- Zaten bilinen şeyleri ASLA tekrar sorma
+- 3-4 cümle
+- Adın yok
 
-{"⚠️ İSİM BİLİNİYOR: " + profile.name if profile.name else "İsim bilinmiyor"}
-{"⚠️ MESLEK BİLİNİYOR: " + profile.profession + " - TEKRAR SORMA!" if profile.profession else "Meslek bilinmiyor"}
-{"⚠️ ŞEHİR BİLİNİYOR: " + profile.hometown + " - TEKRAR SORMA!" if profile.hometown else "Şehir bilinmiyor"}
+{"⚠️ BİLİNEN: " + ", ".join([k.split(":")[1].strip() for k in memory.split("\n") if k.startswith("✓")]) if memory != "Henüz bilgi yok" else ""}
 
 Yanıt:"""
 
             response = await self.question_agent.llm_service.generate_response(
                 prompt=prompt,
                 system_message=SYSTEM_PROMPT,
-                temperature=0.85,
-                max_tokens=200
+                temperature=0.8,
+                max_tokens=150  # Shorter to avoid rambling
             )
             
             result = response.strip()
             
-            # Remove any prefix
+            # Remove prefix
             if ":" in result and result.split(":")[0] in ["A", "Ayşe", "Bot", "Asistan"]:
                 result = result.split(":", 1)[1].strip()
             
@@ -365,7 +445,7 @@ Yanıt:"""
         return "\n".join(lines)
     
     def _get_detailed_memory(self, profile: UserProfile) -> str:
-        """Get detailed memory."""
+        """Get detailed memory with child info."""
         parts = []
         if profile.name:
             parts.append(f"✓ İsim: {profile.name}")
@@ -376,9 +456,19 @@ Yanıt:"""
         if profile.marital_status:
             parts.append(f"✓ Medeni durum: {profile.marital_status}")
         if profile.has_children is not None:
-            parts.append(f"✓ Çocuk: {'var' if profile.has_children else 'yok'}")
+            if profile.has_children:
+                age_info = f" ({profile.family_size} çocuk)" if profile.family_size else " (var)"
+                parts.append(f"✓ Çocuk: var{age_info}")
+            else:
+                parts.append("✓ Çocuk: yok")
         if profile.hobbies:
             parts.append(f"✓ Hobi: {', '.join(profile.hobbies)}")
+        if profile.email:
+            parts.append(f"✓ Email: {profile.email}")
+        if profile.phone_number:
+            parts.append(f"✓ Telefon: {profile.phone_number}")
+        if profile.estimated_salary:
+            parts.append(f"✓ Maaş: {profile.estimated_salary}")
         
         return "\n".join(parts) if parts else "Henüz bilgi yok"
     
