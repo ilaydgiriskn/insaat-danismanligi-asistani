@@ -1,8 +1,9 @@
-"""Process user message use case - Natural AI conversation with memory."""
+"""Process user message - Free-flow LLM conversation for real estate."""
 
 from typing import Optional
 from uuid import UUID
 import re
+import json
 
 from application.agents import QuestionAgent, ValidationAgent, AnalysisAgent
 from domain.entities import UserProfile, Conversation
@@ -11,49 +12,46 @@ from domain.enums import QuestionCategory
 from infrastructure.config import get_logger
 
 
-# Turkish greetings to detect
-GREETINGS = [
-    'merhaba', 'selam', 'selamlar', 'mrb', 'slm', 'hey', 'hi', 'hello',
-    'günaydın', 'iyi günler', 'iyi akşamlar', 'naber', 'nasılsın',
-    'sa', 'selamun aleyküm', 'as', 'merhabalar', 'nbr'
-]
+GREETINGS = ['merhaba', 'selam', 'selamlar', 'mrb', 'slm', 'hey', 'hi', 'sa', 'merhabalar', 'naber']
 
-# Turkish cities
-TURKISH_CITIES = [
-    'istanbul', 'ankara', 'izmir', 'bursa', 'antalya', 'adana', 
-    'gaziantep', 'konya', 'mersin', 'kayseri', 'eskişehir', 
-    'samsun', 'denizli', 'trabzon', 'malatya', 'kocaeli',
-    'diyarbakır', 'şanlıurfa', 'hatay', 'manisa', 'kahramanmaraş',
-    'van', 'aydın', 'balıkesir', 'tekirdağ', 'sakarya', 'muğla'
-]
+SYSTEM_PROMPT = """Sen samimi, sıcak ve profesyonel bir emlak danışmanısın.
 
-# System prompt for natural conversation
-SYSTEM_PROMPT = """Sen profesyonel ama samimi bir AI emlak danışmanısın.
+GÖREV:
+Kullanıcıyla DOĞAL SOHBET ederek onu tanı ve ev ihtiyaçlarını anla.
+Asla form doldurur gibi sorma, arkadaşça sohbet et.
 
-TEMEL PRENSİPLER:
-- Kullanıcının ismini mutlaka al (hitap için zorunlu)
-- İsim almadan emlak detaylarına girme
-- Sohbet gibi ilerle, form doldurur gibi değil
-- Aynı anda yalnızca 1 soru sor
-- Daha önce cevaplanmış bir soruyu ASLA tekrar sorma
-- Kullanıcı kısa cevap verirse bozulma, sohbeti toparla
-
-YASAK DAVRANIŞLAR:
-❌ Arka arkaya soru yağmuru
-❌ "Şimdi şunu soruyorum" gibi robot cümleler
-❌ "Teşekkürler X!" kalıp cümlesi sürekli tekrar
-❌ Kullanıcıyı form dolduruyormuş gibi hissettirmek
-
-TON:
+SOHBET TARZI:
 - Samimi ama profesyonel
-- İnsan gibi, doğal
-- Gerektiğinde empatik
-- ASLA laubali değil
-- Türkçe, kısa ve öz"""
+- Kullanıcının cevaplarına BAĞLAMLI sorular sor
+- Hobi, meslek, aile gibi konuları EV İHTİYACINA bağla
+- Örnek: Spor yapıyorsa → spor salonuna yakınlık önemli mi?
+- Örnek: Evcil hayvanı varsa → bahçeli/geniş ev lazım mı?
+- Örnek: Çocukları varsa → okula yakınlık, güvenli site vs.
+
+KURALLARI:
+1. Her seferinde TEK SORU sor
+2. Kısa ve doğal ol (1-2 cümle)
+3. Aynı bilgiyi tekrar sorma
+4. Robot cümleleri ("Teşekkürler X!") kullanma
+5. Emoji kullanabilirsin ama abartma
+6. Türkçe konuş
+
+TOPLANACAK BİLGİLER (zamanla, sohbet içinde):
+- İsim (zorunlu)
+- Nereli/nerede yaşıyor
+- Meslek
+- Medeni durum, çocuk
+- Hobi/ilgi alanları
+- Bütçe
+- Hangi şehirde ev arıyor
+- Ev tipi tercihi
+- Özel ihtiyaçlar (işe yakınlık, okul, spor salonu vs.)
+
+AMA: Bunları sırayla sorma! Sohbetin doğal akışına göre sor."""
 
 
 class ProcessUserMessageUseCase:
-    """Use case for processing user messages with natural LLM conversation."""
+    """Natural conversation for real estate consultation."""
     
     def __init__(
         self,
@@ -71,317 +69,176 @@ class ProcessUserMessageUseCase:
         self.logger = get_logger(self.__class__.__name__)
     
     async def execute(self, session_id: str, user_message: str) -> dict:
-        """Process user message with natural conversation."""
+        """Process message with free-flow conversation."""
         try:
-            self.logger.info(f"Processing: {user_message[:50]}")
-            
-            # Get or create profile and conversation
+            # Get profile and conversation
             user_profile = await self._get_or_create_user_profile(session_id)
             conversation = await self._get_or_create_conversation(user_profile.id)
             
             # Add user message
             conversation.add_user_message(user_message)
-            await self.conversation_repo.update(conversation)
             
             message_lower = user_message.lower().strip()
+            is_greeting = message_lower in GREETINGS or any(message_lower.startswith(g) for g in GREETINGS)
             
-            # Check if greeting
-            is_greeting = any(g == message_lower or message_lower.startswith(g + ' ') for g in GREETINGS)
-            
-            # Get last question category
-            last_category = self._get_last_question_category(conversation)
-            
-            # Process based on context
-            if is_greeting:
-                # Just a greeting, don't save as name
-                pass
-            elif last_category == "name" or (not user_profile.name and not is_greeting):
-                # This should be the name
-                user_profile.name = user_message.strip()
-                user_profile.answered_categories.add(QuestionCategory.NAME)
-                self.logger.info(f"Saved name: {user_profile.name}")
-            elif last_category:
-                # Process answer for the category
-                self._process_answer(user_profile, user_message, last_category)
-            else:
-                # Try to extract info
-                self._extract_info(user_profile, user_message)
+            # Extract info from message using LLM
+            if not is_greeting:
+                await self._extract_info_with_llm(user_profile, conversation, user_message)
             
             # Save profile
             await self.user_repo.update(user_profile)
-            
-            # Generate natural response
-            response_text = await self._generate_response(
-                user_profile, 
-                conversation, 
-                user_message,
-                is_greeting
-            )
-            
-            # Get next category for metadata
-            next_category = self._get_next_category(user_profile)
-            
-            # Save response
-            conversation.add_assistant_message(
-                response_text,
-                metadata={"category": next_category}
-            )
             await self.conversation_repo.update(conversation)
             
-            # Check completion
-            is_ready = user_profile.is_complete()
+            # Generate natural response
+            response = await self._generate_free_response(user_profile, conversation, is_greeting)
+            
+            # Save response
+            conversation.add_assistant_message(response)
+            await self.conversation_repo.update(conversation)
+            
+            # Check if enough info for analysis
+            is_ready = self._has_enough_info(user_profile)
             
             return {
-                "response": response_text,
+                "response": response,
                 "type": "analysis" if is_ready else "question",
                 "is_complete": is_ready,
-                "category": next_category,
+                "category": None,
             }
             
         except Exception as e:
             self.logger.error(f"Error: {str(e)}", exc_info=True)
             return {
-                "response": "Pardon, küçük bir aksaklık oldu. Devam edelim mi?",
+                "response": "Pardon, bir aksaklık oldu. Neyse, devam edelim 😊",
                 "type": "error",
                 "is_complete": False,
             }
     
-    async def _generate_response(
+    async def _extract_info_with_llm(
         self, 
         user_profile: UserProfile, 
         conversation: Conversation,
-        user_message: str,
-        is_greeting: bool
-    ) -> str:
-        """Generate natural response using LLM."""
+        message: str
+    ) -> None:
+        """Use LLM to extract information from user message."""
         try:
-            # Build context
-            history = self._format_history(conversation)
-            memory = self._format_memory(user_profile)
-            next_needed = self._get_next_needed_info(user_profile)
+            history = self._get_history(conversation, 4)
             
-            prompt = f"""HAFIZADA OLAN BİLGİLER:
-{memory}
-
-SON SOHBET:
+            prompt = f"""Son sohbet:
 {history}
 
-KULLANICININ SON MESAJI: "{user_message}"
+Kullanıcının son mesajı: "{message}"
 
-SONRAKİ TOPLANACAK BİLGİ: {next_needed}
+Bu mesajdan çıkarılabilecek bilgileri JSON olarak ver.
+Sadece NET olarak söylenen bilgileri çıkar, tahmin yapma.
+Bilgi yoksa boş bırak.
 
-GÖREV:
-1. Kullanıcının mesajına uygun, doğal bir yanıt ver
-2. Eğer selamlaştıysa, selamla ve ismini sor
-3. Eğer isim aldıysan, memnun ol ve sonraki şeyi sor (şehir gibi)
-4. Asla robot gibi konuşma
-5. 1-2 cümle max, kısa ve öz
-6. Hafızadaki bilgileri tekrar sorma
+JSON formatı:
+{{
+    "name": "isim veya null",
+    "email": "email veya null", 
+    "city": "yaşadığı şehir veya null",
+    "hometown": "memleket veya null",
+    "profession": "meslek veya null",
+    "marital_status": "evli/bekar veya null",
+    "has_children": true/false veya null,
+    "children_count": sayı veya null,
+    "hobbies": ["hobi1", "hobi2"] veya null,
+    "has_pets": true/false veya null,
+    "pet_type": "kedi/köpek vs veya null",
+    "budget_min": sayı veya null,
+    "budget_max": sayı veya null,
+    "target_city": "ev aradığı şehir veya null",
+    "property_type": "daire/villa/müstakil veya null",
+    "special_needs": ["spor salonuna yakın", "okula yakın" vs.] veya null
+}}
 
-YANITINI YAZ (sadece yanıt metni):"""
+Sadece JSON döndür:"""
 
             response = await self.question_agent.llm_service.generate_response(
                 prompt=prompt,
-                system_message=SYSTEM_PROMPT,
-                temperature=0.8,
-                max_tokens=100
+                system_message="Bilgi çıkarma uzmanısın. Sadece NET söylenen bilgileri çıkar.",
+                temperature=0.1,
+                max_tokens=300
             )
             
-            return response.strip()
-            
+            # Parse JSON
+            try:
+                # Clean response
+                content = response.strip()
+                if content.startswith("```"):
+                    content = content.split("```")[1]
+                    if content.startswith("json"):
+                        content = content[4:]
+                content = content.strip()
+                
+                data = json.loads(content)
+                self._apply_extracted_data(user_profile, data)
+                
+            except json.JSONDecodeError:
+                self.logger.warning(f"Could not parse LLM response: {response[:100]}")
+                # Fallback: basic extraction
+                self._basic_extraction(user_profile, message)
+                
         except Exception as e:
-            self.logger.error(f"LLM error: {e}")
-            return self._fallback_response(user_profile, is_greeting)
+            self.logger.error(f"Extraction error: {e}")
+            self._basic_extraction(user_profile, message)
     
-    def _fallback_response(self, user_profile: UserProfile, is_greeting: bool) -> str:
-        """Fallback if LLM fails."""
-        if is_greeting:
-            return "Merhaba! 😊 Hoş geldiniz. Size nasıl hitap edebilirim?"
+    def _apply_extracted_data(self, user_profile: UserProfile, data: dict) -> None:
+        """Apply extracted data to user profile."""
+        if data.get("name") and not user_profile.name:
+            user_profile.name = data["name"]
+            user_profile.answered_categories.add(QuestionCategory.NAME)
+            self.logger.info(f"Extracted name: {data['name']}")
         
-        if not user_profile.name:
-            return "Size nasıl hitap edebilirim?"
+        if data.get("email") and not user_profile.email:
+            user_profile.email = data["email"]
+            user_profile.answered_categories.add(QuestionCategory.EMAIL)
         
-        name = user_profile.name
-        
-        if QuestionCategory.EMAIL not in user_profile.answered_categories:
-            return f"Memnun oldum {name}! Sizinle iletişim için mail adresinizi alabilir miyim?"
-        
-        if QuestionCategory.HOMETOWN not in user_profile.answered_categories:
-            return f"Peki {name}, şu anda hangi şehirde yaşıyorsunuz?"
-        
-        if QuestionCategory.BUDGET not in user_profile.answered_categories:
-            return "Ev için düşündüğünüz bir bütçe aralığı var mı?"
-        
-        if QuestionCategory.LOCATION not in user_profile.answered_categories:
-            return "Hangi şehirde ev arıyorsunuz?"
-        
-        return f"Devam edelim {name}, başka bir şey sormak ister misiniz?"
-    
-    def _format_history(self, conversation: Conversation) -> str:
-        """Format recent conversation."""
-        recent = conversation.get_recent_messages(6)
-        if not recent:
-            return "Yeni sohbet başladı"
-        
-        lines = []
-        for msg in recent:
-            role = "Kullanıcı" if msg.role.value == "user" else "Asistan"
-            lines.append(f"{role}: {msg.content}")
-        
-        return "\n".join(lines)
-    
-    def _format_memory(self, user_profile: UserProfile) -> str:
-        """Format user memory/profile."""
-        parts = []
-        
-        if user_profile.name:
-            parts.append(f"✓ İsim: {user_profile.name}")
-        else:
-            parts.append("✗ İsim: Bilinmiyor (SORMALISIN)")
-        
-        if user_profile.email:
-            parts.append(f"✓ E-posta: {user_profile.email}")
-        
-        if user_profile.hometown:
-            parts.append(f"✓ Yaşadığı şehir: {user_profile.hometown}")
-        
-        if user_profile.profession:
-            parts.append(f"✓ Meslek: {user_profile.profession}")
-        
-        if user_profile.budget:
-            parts.append(f"✓ Bütçe: {user_profile.budget.min_amount:,} - {user_profile.budget.max_amount:,} TL")
-        
-        if user_profile.location:
-            parts.append(f"✓ Aradığı konum: {user_profile.location.city}")
-        
-        if user_profile.property_preferences:
-            parts.append(f"✓ Ev tipi: {user_profile.property_preferences.property_type.value}")
-        
-        if user_profile.family_size:
-            parts.append(f"✓ Aile: {user_profile.family_size} kişi")
-        
-        return "\n".join(parts) if parts else "Henüz bilgi yok"
-    
-    def _get_next_needed_info(self, user_profile: UserProfile) -> str:
-        """Describe next info to collect."""
-        if not user_profile.name:
-            return "İSİM (zorunlu - hitap için)"
-        
-        needs = []
-        
-        if QuestionCategory.EMAIL not in user_profile.answered_categories:
-            needs.append("E-posta")
-        if QuestionCategory.HOMETOWN not in user_profile.answered_categories:
-            needs.append("Şu an yaşadığı şehir")
-        if QuestionCategory.PROFESSION not in user_profile.answered_categories:
-            needs.append("Meslek/yaşam durumu")
-        if QuestionCategory.BUDGET not in user_profile.answered_categories:
-            needs.append("Bütçe")
-        if QuestionCategory.LOCATION not in user_profile.answered_categories:
-            needs.append("Ev aradığı şehir/ilçe")
-        if QuestionCategory.PROPERTY_TYPE not in user_profile.answered_categories:
-            needs.append("Ev tipi (daire/villa)")
-        
-        if not needs:
-            return "Tüm bilgiler tamam, analiz yapılabilir"
-        
-        return needs[0]  # Return first needed
-    
-    def _get_next_category(self, user_profile: UserProfile) -> Optional[str]:
-        """Get next category for metadata."""
-        if not user_profile.name:
-            return "name"
-        
-        priority = [
-            QuestionCategory.EMAIL,
-            QuestionCategory.HOMETOWN,
-            QuestionCategory.PROFESSION,
-            QuestionCategory.BUDGET,
-            QuestionCategory.LOCATION,
-            QuestionCategory.PROPERTY_TYPE,
-            QuestionCategory.ROOMS,
-            QuestionCategory.FAMILY_SIZE,
-        ]
-        
-        for cat in priority:
-            if cat not in user_profile.answered_categories:
-                return cat.value
-        
-        return None
-    
-    def _get_last_question_category(self, conversation: Conversation) -> Optional[str]:
-        """Get last asked category."""
-        recent = conversation.get_recent_messages(2)
-        for msg in reversed(recent):
-            if msg.role.value == "assistant" and msg.metadata:
-                return msg.metadata.get("category")
-        return None
-    
-    def _process_answer(self, user_profile: UserProfile, message: str, category: str) -> None:
-        """Process answer for specific category."""
-        message_lower = message.lower().strip()
-        
-        if category == "name":
-            if not any(g in message_lower for g in GREETINGS):
-                user_profile.name = message.strip()
-                user_profile.answered_categories.add(QuestionCategory.NAME)
-        
-        elif category == "email":
-            email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', message)
-            if email_match:
-                user_profile.email = email_match.group()
-                user_profile.answered_categories.add(QuestionCategory.EMAIL)
-        
-        elif category == "hometown":
-            for city in TURKISH_CITIES:
-                if city in message_lower:
-                    user_profile.hometown = city.title()
-                    user_profile.answered_categories.add(QuestionCategory.HOMETOWN)
-                    return
-            user_profile.hometown = message.strip().title()
+        if data.get("city") and not user_profile.hometown:
+            user_profile.hometown = data["city"]
             user_profile.answered_categories.add(QuestionCategory.HOMETOWN)
         
-        elif category == "profession":
-            user_profile.profession = message.strip()
+        if data.get("hometown") and not user_profile.hometown:
+            user_profile.hometown = data["hometown"]
+            user_profile.answered_categories.add(QuestionCategory.HOMETOWN)
+        
+        if data.get("profession") and not user_profile.profession:
+            user_profile.profession = data["profession"]
             user_profile.answered_categories.add(QuestionCategory.PROFESSION)
         
-        elif category == "budget":
-            numbers = re.findall(r'(\d{1,3}(?:[.,]\d{3})*)', message)
-            if numbers:
-                parsed = []
-                for n in numbers:
-                    num_str = n.replace('.', '').replace(',', '')
-                    try:
-                        parsed.append(int(num_str))
-                    except:
-                        pass
-                if parsed:
-                    from domain.value_objects import Budget
-                    min_amt = min(parsed)
-                    max_amt = max(parsed) if len(parsed) > 1 else int(min_amt * 1.2)
-                    user_profile.budget = Budget(min_amount=min_amt, max_amount=max_amt)
-                    user_profile.answered_categories.add(QuestionCategory.BUDGET)
+        if data.get("marital_status") and not user_profile.marital_status:
+            user_profile.marital_status = data["marital_status"]
+            user_profile.answered_categories.add(QuestionCategory.MARITAL_STATUS)
         
-        elif category == "location":
-            for city in TURKISH_CITIES:
-                if city in message_lower:
-                    from domain.value_objects import Location
-                    user_profile.location = Location(city=city.title(), country="Turkey")
-                    user_profile.answered_categories.add(QuestionCategory.LOCATION)
-                    return
+        if data.get("has_children") is not None and user_profile.has_children is None:
+            user_profile.has_children = data["has_children"]
+            user_profile.answered_categories.add(QuestionCategory.CHILDREN)
+        
+        if data.get("hobbies") and not user_profile.hobbies:
+            user_profile.hobbies = data["hobbies"]
+            user_profile.answered_categories.add(QuestionCategory.HOBBIES)
+        
+        if data.get("budget_min") and not user_profile.budget:
+            from domain.value_objects import Budget
+            min_amt = data["budget_min"]
+            max_amt = data.get("budget_max") or int(min_amt * 1.2)
+            user_profile.budget = Budget(min_amount=min_amt, max_amount=max_amt)
+            user_profile.answered_categories.add(QuestionCategory.BUDGET)
+        
+        if data.get("target_city") and not user_profile.location:
             from domain.value_objects import Location
-            user_profile.location = Location(city=message.strip().title(), country="Turkey")
+            user_profile.location = Location(city=data["target_city"], country="Turkey")
             user_profile.answered_categories.add(QuestionCategory.LOCATION)
         
-        elif category == "property_type":
+        if data.get("property_type") and not user_profile.property_preferences:
             from domain.value_objects import PropertyPreferences
             from domain.enums import PropertyType
             
-            if 'daire' in message_lower:
-                t = PropertyType.APARTMENT
-            elif 'villa' in message_lower:
+            ptype = data["property_type"].lower()
+            if "villa" in ptype:
                 t = PropertyType.VILLA
-            elif 'müstakil' in message_lower:
+            elif "müstakil" in ptype:
                 t = PropertyType.DETACHED_HOUSE
             else:
                 t = PropertyType.APARTMENT
@@ -389,46 +246,141 @@ YANITINI YAZ (sadece yanıt metni):"""
             user_profile.property_preferences = PropertyPreferences(property_type=t)
             user_profile.answered_categories.add(QuestionCategory.PROPERTY_TYPE)
         
-        elif category == "rooms":
-            match = re.search(r'(\d+)', message)
-            if match:
-                rooms = int(match.group(1))
-                if user_profile.property_preferences:
-                    user_profile.property_preferences.min_rooms = rooms
-                user_profile.answered_categories.add(QuestionCategory.ROOMS)
-        
-        elif category == "family_size":
-            match = re.search(r'(\d+)', message)
-            if match:
-                user_profile.family_size = int(match.group(1))
-                user_profile.answered_categories.add(QuestionCategory.FAMILY_SIZE)
+        if data.get("special_needs"):
+            if not user_profile.lifestyle_notes:
+                user_profile.lifestyle_notes = ", ".join(data["special_needs"])
+            else:
+                user_profile.lifestyle_notes += ", " + ", ".join(data["special_needs"])
     
-    def _extract_info(self, user_profile: UserProfile, message: str) -> None:
-        """Extract any info from message."""
+    def _basic_extraction(self, user_profile: UserProfile, message: str) -> None:
+        """Basic regex extraction as fallback."""
         # Email
         email = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', message)
-        if email:
+        if email and not user_profile.email:
             user_profile.email = email.group()
             user_profile.answered_categories.add(QuestionCategory.EMAIL)
+    
+    async def _generate_free_response(
+        self, 
+        user_profile: UserProfile, 
+        conversation: Conversation,
+        is_greeting: bool
+    ) -> str:
+        """Generate free-flow contextual response."""
+        try:
+            history = self._get_history(conversation, 6)
+            memory = self._format_memory(user_profile)
+            
+            prompt = f"""BİLİNEN BİLGİLER:
+{memory}
+
+SOHBET GEÇMİŞİ:
+{history}
+
+GÖREV:
+Kullanıcıyla doğal sohbet et. Ev konusuna hemen atılma.
+Kullanıcıyı tanı, hayatını anla, sonra ev ihtiyaçlarına bağla.
+
+ÖNEMLİ:
+- Kullanıcının son mesajına BAĞLAMLI cevap ver
+- Eğer hobi/meslek/aile söylediyse, bunu ev ihtiyacına bağlayabilirsin
+- Örnek: "Spor yapıyorum" → "Güzel! Spor salonu yakın olsun ister misin?"
+- Örnek: "2 çocuğum var" → "Çocuklar için okula yakınlık önemli mi?"
+- AMA çok direkt olma, sohbet gibi sor
+
+İSİM YOKSA: Önce ismini sor
+İSİM VARSA: Sohbete devam et, doğal sorular sor
+
+Sadece yanıt metnini yaz (1-2 cümle max):"""
+
+            response = await self.question_agent.llm_service.generate_response(
+                prompt=prompt,
+                system_message=SYSTEM_PROMPT,
+                temperature=0.85,
+                max_tokens=120
+            )
+            
+            return response.strip()
+            
+        except Exception as e:
+            self.logger.error(f"Response error: {e}")
+            return self._fallback_response(user_profile, is_greeting)
+    
+    def _fallback_response(self, user_profile: UserProfile, is_greeting: bool) -> str:
+        """Fallback if LLM fails."""
+        if is_greeting or not user_profile.name:
+            return "Merhaba! 😊 Size nasıl hitap edebilirim?"
+        return f"Anladım {user_profile.name}! Devam edelim, biraz daha sohbet edelim."
+    
+    def _get_history(self, conversation: Conversation, count: int = 6) -> str:
+        """Get formatted conversation history."""
+        recent = conversation.get_recent_messages(count)
+        if not recent:
+            return "Yeni sohbet"
+        
+        lines = []
+        for msg in recent:
+            role = "Kullanıcı" if msg.role.value == "user" else "Sen"
+            lines.append(f"{role}: {msg.content}")
+        return "\n".join(lines)
+    
+    def _format_memory(self, user_profile: UserProfile) -> str:
+        """Format what we know about user."""
+        parts = []
+        
+        if user_profile.name:
+            parts.append(f"İsim: {user_profile.name}")
+        else:
+            parts.append("İsim: BİLİNMİYOR (sor!)")
+        
+        if user_profile.email:
+            parts.append(f"Email: {user_profile.email}")
+        if user_profile.hometown:
+            parts.append(f"Yaşadığı yer: {user_profile.hometown}")
+        if user_profile.profession:
+            parts.append(f"Meslek: {user_profile.profession}")
+        if user_profile.marital_status:
+            parts.append(f"Medeni durum: {user_profile.marital_status}")
+        if user_profile.has_children:
+            parts.append("Çocuğu var")
+        if user_profile.hobbies:
+            parts.append(f"Hobiler: {', '.join(user_profile.hobbies)}")
+        if user_profile.budget:
+            parts.append(f"Bütçe: {user_profile.budget.min_amount:,}-{user_profile.budget.max_amount:,} TL")
+        if user_profile.location:
+            parts.append(f"Ev aradığı yer: {user_profile.location.city}")
+        if user_profile.property_preferences:
+            parts.append(f"Ev tipi: {user_profile.property_preferences.property_type.value}")
+        if user_profile.lifestyle_notes:
+            parts.append(f"Özel ihtiyaçlar: {user_profile.lifestyle_notes}")
+        
+        return "\n".join(parts) if parts else "Henüz bilgi yok"
+    
+    def _has_enough_info(self, user_profile: UserProfile) -> bool:
+        """Check if we have enough info for analysis."""
+        return (
+            user_profile.name is not None
+            and user_profile.budget is not None
+            and user_profile.location is not None
+            and user_profile.property_preferences is not None
+        )
     
     async def _get_or_create_user_profile(self, session_id: str) -> UserProfile:
         try:
             profile = await self.user_repo.get_by_session_id(session_id)
-            if profile is None:
+            if not profile:
                 profile = UserProfile(session_id=session_id)
                 profile = await self.user_repo.create(profile)
             return profile
-        except Exception as e:
-            self.logger.error(f"Profile error: {e}")
+        except:
             return UserProfile(session_id=session_id)
     
     async def _get_or_create_conversation(self, user_profile_id: UUID) -> Conversation:
         try:
             conv = await self.conversation_repo.get_by_user_profile_id(user_profile_id)
-            if conv is None:
+            if not conv:
                 conv = Conversation(user_profile_id=user_profile_id)
                 conv = await self.conversation_repo.create(conv)
             return conv
-        except Exception as e:
-            self.logger.error(f"Conv error: {e}")
+        except:
             return Conversation(user_profile_id=user_profile_id)
