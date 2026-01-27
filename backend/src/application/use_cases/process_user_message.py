@@ -396,9 +396,18 @@ class ProcessUserMessageUseCase:
             
         except Exception as e:
             self.logger.error(f"Generate error: {e}")
+            # If LLM fails, use deterministic QuestionAgent for a smart question
+            try:
+                agent_result = await self.question_agent.execute(profile, conversation)
+                if agent_result.get("question"):
+                    self.logger.info("Using QuestionAgent fallback")
+                    return agent_result["question"]
+            except:
+                pass
+                
             if not profile.name:
                 return "Merhaba! Ben AI emlak asistanıyım. Adın ne?"
-            return f"Devam edelim {profile.name}!"
+            return f"{profile.name}, devam edelim. Hangi şehirde ev arıyorsun?"
     
     def _get_history(self, conversation: Conversation, count: int = 8) -> str:
         """Get detailed history."""
