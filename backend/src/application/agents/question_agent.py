@@ -8,31 +8,14 @@ from domain.enums import QuestionCategory
 
 
 class QuestionAgent(BaseAgent):
-    """
-    Agent responsible for selecting the next question to ask the user.
-    
-    This agent:
-    1. Analyzes user's current profile
-    2. Identifies missing information
-    3. Selects the most relevant next question
-    4. Ensures no question is repeated
-    """
+    """Agent that selects the next question to ask the user."""
     
     async def execute(
         self,
         user_profile: UserProfile,
         conversation: Conversation,
     ) -> dict:
-        """
-        Select next question for the user.
-        
-        Args:
-            user_profile: Current user profile
-            conversation: Conversation history
-            
-        Returns:
-            Dict with 'question' and 'category' keys
-        """
+        """Select next question based on missing profile information."""
         try:
             self._log_execution("Selecting next question")
             
@@ -46,41 +29,96 @@ class QuestionAgent(BaseAgent):
                     "message": "All categories answered"
                 }
             
-            # Build context
-            profile_summary = self._build_profile_summary(user_profile)
-            conversation_history = self._build_conversation_history(conversation)
-            
-            # Get prompt
-            prompt = self.prompt_manager.get_question_prompt(
-                user_profile_summary=profile_summary,
-                conversation_history=conversation_history,
-            )
-            
-            system_message = self.prompt_manager.get_system_message("question")
-            
-            # Generate question using LLM
-            response = await self.llm_service.generate_structured_response(
-                prompt=prompt,
-                system_message=system_message,
-                response_format={
-                    "question": "string",
-                    "category": "string",
-                    "reasoning": "string"
-                }
-            )
-            
-            self._log_execution(f"Generated question for category: {response.get('category')}")
-            
-            return {
-                "question": response.get("question"),
-                "category": response.get("category"),
-                "reasoning": response.get("reasoning"),
-            }
+            # ALWAYS use deterministic fallback - no LLM for question selection
+            return self._fallback_question_selection(user_profile, unanswered)
             
         except Exception as e:
             self._log_error(e)
-            # Fallback to simple question selection
-            return self._fallback_question_selection(unanswered)
+            unanswered = user_profile.get_unanswered_categories()
+            return self._fallback_question_selection(user_profile, unanswered)
+    
+    def _fallback_question_selection(
+        self,
+        user_profile: UserProfile,
+        unanswered: set[QuestionCategory]
+    ) -> dict:
+        """Deterministic question selection - no LLM, predictable order."""
+        
+        # SKIP NAME - it's captured directly from first message
+        # Order: email -> hometown -> profession -> budget -> location -> property
+        priority = [
+            QuestionCategory.EMAIL,
+            QuestionCategory.HOMETOWN,
+            QuestionCategory.PROFESSION,
+            QuestionCategory.MARITAL_STATUS,
+            QuestionCategory.CHILDREN,
+            QuestionCategory.BUDGET,
+            QuestionCategory.LOCATION,
+            QuestionCategory.PROPERTY_TYPE,
+            QuestionCategory.ROOMS,
+            QuestionCategory.FAMILY_SIZE,
+            QuestionCategory.SALARY,
+            QuestionCategory.HOBBIES,
+            QuestionCategory.PETS,
+            QuestionCategory.PHONE,
+        ]
+        
+        for category in priority:
+            if category in unanswered:
+                question = self._get_personalized_question(user_profile, category)
+                return {
+                    "question": question,
+                    "category": category.value,
+                    "reasoning": "Priority-based selection"
+                }
+        
+        # If NAME is still unanswered (shouldn't happen with new logic)
+        if QuestionCategory.NAME in unanswered:
+            question = self._get_personalized_question(user_profile, QuestionCategory.NAME)
+            return {
+                "question": question,
+                "category": QuestionCategory.NAME.value,
+                "reasoning": "Fallback to name"
+            }
+        
+        return {
+            "question": None,
+            "category": None,
+            "message": "All priority categories answered"
+        }
+    
+    def _get_personalized_question(self, user_profile: UserProfile, category: QuestionCategory) -> str:
+        """Get personalized question based on user's name."""
+        name = user_profile.name or ""
+        
+        # Create friendly greeting with name
+        if name:
+            greeting = f"Teşekkürler {name}! "
+        else:
+            greeting = ""
+        
+        questions = {
+            QuestionCategory.NAME: "İsminizi öğrenebilir miyim?",
+            QuestionCategory.EMAIL: f"{greeting}Size ulaşabilmem için e-posta adresinizi alabilir miyim?",
+            QuestionCategory.PHONE: f"{greeting}Telefon numaranızı da paylaşmak ister misiniz?",
+            QuestionCategory.HOMETOWN: f"{greeting}Hangi şehirde doğup büyüdünüz?",
+            QuestionCategory.PROFESSION: f"{greeting}Ne iş yapıyorsunuz?",
+            QuestionCategory.MARITAL_STATUS: f"{greeting}Medeni durumunuz nedir?",
+            QuestionCategory.CHILDREN: f"{greeting}Çocuğunuz var mı?",
+            QuestionCategory.SALARY: f"{greeting}Aylık geliriniz ne kadar? (Tahmini olarak söyleyebilirsiniz)",
+            QuestionCategory.HOBBIES: f"{greeting}Boş zamanlarınızda neler yapmayı seversiniz?",
+            QuestionCategory.PETS: f"{greeting}Evcil hayvanınız var mı?",
+            QuestionCategory.BUDGET: f"{greeting}Ev almak için bütçeniz ne kadar?",
+            QuestionCategory.LOCATION: f"{greeting}Hangi şehir veya bölgede ev aramak istiyorsunuz?",
+            QuestionCategory.PROPERTY_TYPE: f"{greeting}Ne tür bir konut arıyorsunuz? (Daire, villa, müstakil ev gibi)",
+            QuestionCategory.ROOMS: f"{greeting}Kaç odalı bir ev tercih edersiniz?",
+            QuestionCategory.FAMILY_SIZE: f"{greeting}Kaç kişilik bir aile için ev arıyorsunuz?",
+        }
+        
+        return questions.get(
+            category,
+            f"{greeting}{category.value} hakkında bilgi verebilir misiniz?"
+        )
     
     def _build_profile_summary(self, user_profile: UserProfile) -> str:
         """Build a summary of user's current profile."""
@@ -101,21 +139,6 @@ class QuestionAgent(BaseAgent):
         if user_profile.profession:
             parts.append(f"Profession: {user_profile.profession}")
         
-        if user_profile.marital_status:
-            parts.append(f"Marital Status: {user_profile.marital_status}")
-        
-        if user_profile.has_children is not None:
-            parts.append(f"Has Children: {user_profile.has_children}")
-        
-        if user_profile.estimated_salary:
-            parts.append(f"Estimated Salary: {user_profile.estimated_salary}")
-            
-        if user_profile.hobbies:
-            parts.append(f"Hobbies: {', '.join(user_profile.hobbies)}")
-            
-        if user_profile.lifestyle_notes:
-            parts.append(f"Lifestyle Notes: {user_profile.lifestyle_notes}")
-
         if user_profile.budget:
             parts.append(f"Budget: {user_profile.budget}")
         
@@ -145,88 +168,3 @@ class QuestionAgent(BaseAgent):
             history.append(f"{msg.role.value}: {msg.content}")
         
         return "\n".join(history)
-    
-    def _fallback_question_selection(
-        self,
-        unanswered: set[QuestionCategory]
-    ) -> dict:
-        """Fallback question selection without LLM."""
-        # Introduction Phase Priority
-        intro_priority = [
-            QuestionCategory.NAME,
-            QuestionCategory.EMAIL,
-            QuestionCategory.HOMETOWN,
-            QuestionCategory.PROFESSION,
-            QuestionCategory.MARITAL_STATUS,
-            QuestionCategory.CHILDREN,
-            QuestionCategory.SALARY,
-            QuestionCategory.HOBBIES,
-            QuestionCategory.PETS,
-            QuestionCategory.PHONE,
-        ]
-        
-        # Property Search Phase Priority
-        property_priority = [
-            QuestionCategory.BUDGET,
-            QuestionCategory.LOCATION,
-            QuestionCategory.PROPERTY_TYPE,
-            QuestionCategory.ROOMS,
-            QuestionCategory.FAMILY_SIZE,
-        ]
-        
-        # Try introduction phase first
-        for category in intro_priority:
-            if category in unanswered:
-                question = self._get_default_question(category)
-                return {
-                    "question": question,
-                    "category": category.value,
-                    "reasoning": "Introduction phase"
-                }
-        
-        # Then property search phase
-        for category in property_priority:
-            if category in unanswered:
-                question = self._get_default_question(category)
-                return {
-                    "question": question,
-                    "category": category.value,
-                    "reasoning": "Property search phase"
-                }
-        
-        # If none in priority, pick first available
-        category = next(iter(unanswered))
-        question = self._get_default_question(category)
-        return {
-            "question": question,
-            "category": category.value,
-            "reasoning": "Fallback selection"
-        }
-    
-    def _get_default_question(self, category: QuestionCategory) -> str:
-        """Get default question for a category."""
-        questions = {
-            # Introduction Phase
-            QuestionCategory.NAME: "İsminizi öğrenebilir miyim?",
-            QuestionCategory.EMAIL: "Size ulaşabilmem için e-posta adresinizi alabilir miyim?",
-            QuestionCategory.PHONE: "Telefon numaranızı da paylaşmak ister misiniz?",
-            QuestionCategory.HOMETOWN: "Hangi şehirde doğup büyüdünüz?",
-            QuestionCategory.PROFESSION: "Ne iş yapıyorsunuz?",
-            QuestionCategory.MARITAL_STATUS: "Medeni durumunuz nedir?",
-            QuestionCategory.CHILDREN: "Çocuğunuz var mı?",
-            QuestionCategory.SALARY: "Aylık geliriniz ne kadar? (Tahmini olarak söyleyebilirsiniz)",
-            QuestionCategory.HOBBIES: "Boş zamanlarınızda neler yapmayı seversiniz?",
-            QuestionCategory.PETS: "Evcil hayvanınız var mı? Kedi, köpek gibi?",
-            
-            # Property Search Phase
-            QuestionCategory.BUDGET: "Ev almak için bütçeniz ne kadar?",
-            QuestionCategory.LOCATION: "Hangi şehir ve bölgede ev aramak istersiniz?",
-            QuestionCategory.PROPERTY_TYPE: "Ne tür bir konut arıyorsunuz? (Daire, villa, müstakil ev vb.)",
-            QuestionCategory.ROOMS: "Kaç oda istiyorsunuz?",
-            QuestionCategory.FAMILY_SIZE: "Kaç kişilik bir aile için ev arıyorsunuz?",
-        }
-        
-        return questions.get(
-            category,
-            f"{category.value} hakkında bilgi verebilir misiniz?"
-        )
