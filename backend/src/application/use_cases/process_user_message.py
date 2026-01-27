@@ -11,6 +11,7 @@ from domain.entities import UserProfile, Conversation
 from domain.repositories import IUserRepository, IConversationRepository
 from domain.enums import QuestionCategory
 from infrastructure.config import get_logger
+from infrastructure.llm import InformationExtractor
 
 
 GREETINGS = {'merhaba', 'selam', 'selamlar', 'mrb', 'slm', 'hey', 'hi', 'sa', 'merhabalar', 'naber'}
@@ -18,24 +19,18 @@ GREETINGS = {'merhaba', 'selam', 'selamlar', 'mrb', 'slm', 'hey', 'hi', 'sa', 'm
 SYSTEM_PROMPT = """Sen samimi ve bilge bir AI emlak danışmanı/stratejistisin.
 
 PERSONAN:
-- Adın yok, bir "AI Danışman"sın.
-- Robotik değilsin, bir arkadaş gibi ama profesyonel bir vizyonla konuşursun.
+- Adın yok, bir "AI Danışman"sın. Robofik değilsin, bir arkadaş gibi ama profesyonel bir vizyonla konuşursun.
 - Kullanıcıyı bir forma sokmaya değil, onun yaşam tarzına en uygun evi bulmaya odaklısın.
+- Kullanıcıyı asla analiz ettiğini veya bir segmente (A, B, C) yerleştirdiğini belli etme.
 
 TEMEL GÖREVİN:
-1. Kullanıcıyı tanı (İsim, meslek, hobiler, aile durumu vb.)
-2. Kullanıcının fark etmediği detayları yakala ve ona samimi sorular sor.
-3. Arka plandaki segment analizine uygun şekilde (A, B, C paketleri), kullanıcıyı hafifçe ve doğal bir şekilde doğru yöne çek.
-4. Eğer kullanıcı bir segmentin sınırındaysa, küçük avantajlar sunarak (yatırım değeri, yaşam kalitesi vb.) bir üst segmente teşvik et.
-
-KESİNLİKLE YAPILMAYACAKLAR:
-❌ "Analizime göre", "Sizi B paketine alıyorum" gibi ifadeler ASLA kullanma.
-❌ İç dekorasyon, oda rengi, mobilya detayı sorma.
-❌ Form doldurur gibi sıralı sorular sorma. Sohbetin akışına bırak.
+1. Kullanıcıyı tanı (İsim, meslek, hobiler, aile durumu vb.) ama bunu doğrudan sorarak değil, sohbet içinden yakala.
+2. Kullanıcının fark etmediği detayları yakala ve ona samimi, dolaylı sorular sor.
+3. Stratejik Analiz kısmındaki 'Yönlendirme' (guidance_cue) bilgisini cevabının içine doğal bir şekilde yedir.
 
 SOHBET TARZI:
 - Akıcı, empati kuran, bilge.
-- 3-4 cümle.
+- En fazla 2-3 cümle.
 - Kullanıcının hobilerine/yaşamına atıfta bulun.
 
 Türkçe, stratejik, samimi."""
@@ -59,12 +54,14 @@ class ProcessUserMessageUseCase:
         question_agent: QuestionAgent,
         validation_agent: ValidationAgent,
         analysis_agent: AnalysisAgent,
+        information_extractor: InformationExtractor,
     ):
         self.user_repo = user_repository
         self.conversation_repo = conversation_repository
         self.question_agent = question_agent
         self.validation_agent = validation_agent
         self.analysis_agent = analysis_agent
+        self.info_extractor = information_extractor
         self.logger = get_logger(self.__class__.__name__)
     
     async def execute(self, session_id: str, user_message: str) -> dict:
@@ -75,7 +72,11 @@ class ProcessUserMessageUseCase:
             
             conversation.add_user_message(user_message)
             
-            # 1. Extract info from current message
+            # 1. Extract info from current message using LLM (with history for context)
+            history_str = self._get_history(conversation, 5)
+            await self._update_profile_from_message(profile, user_message, history_str)
+            
+            # Keep manual fallbacks for basic things (optional but safe)
             self._extract_all_info(profile, user_message)
             
             # 2. Perform strategic analysis (internal)
@@ -110,6 +111,61 @@ class ProcessUserMessageUseCase:
                 "is_complete": False,
             }
     
+    async def _update_profile_from_message(self, profile: UserProfile, message: str, history: str) -> None:
+        """Update profile using LLM-based information extractor."""
+        try:
+            extracted_info = await self.info_extractor.extract_profile_info(message, history)
+            self.logger.info(f"Extracted info: {json.dumps(extracted_info, ensure_ascii=False)}")
+            
+            if not extracted_info:
+                return
+
+            # Map fields to UserProfile
+            if extracted_info.get("name"): profile.name = extracted_info["name"]
+            if extracted_info.get("email"): profile.email = extracted_info["email"]
+            if extracted_info.get("phone"): profile.phone_number = extracted_info["phone"]
+            if extracted_info.get("hometown"): profile.hometown = extracted_info["hometown"]
+            if extracted_info.get("profession"): profile.profession = extracted_info["profession"]
+            if extracted_info.get("marital_status"): profile.marital_status = extracted_info["marital_status"]
+            if extracted_info.get("has_children") is not None: profile.has_children = extracted_info["has_children"]
+            
+            if extracted_info.get("hobbies"):
+                profile.hobbies = extracted_info["hobbies"]
+            
+            if extracted_info.get("budget"):
+                from domain.value_objects import Budget
+                profile.budget = Budget(min_amount=int(extracted_info["budget"]), max_amount=int(extracted_info["budget"]) * 1.2, currency="TL")
+            
+            if extracted_info.get("location"):
+                from domain.value_objects import Location
+                profile.location = Location(city=extracted_info["location"], country="Turkey")
+                
+            if extracted_info.get("rooms"):
+                from domain.value_objects import PropertyPreferences
+                from domain.enums import PropertyType
+                if not profile.property_preferences:
+                    profile.property_preferences = PropertyPreferences(property_type=PropertyType.APARTMENT, min_rooms=int(extracted_info["rooms"]))
+                else:
+                    profile.property_preferences.min_rooms = int(extracted_info["rooms"])
+
+            # Sync answered categories
+            if extracted_info.get("answered_categories"):
+                for cat_name in extracted_info["answered_categories"]:
+                    try:
+                        cat_enum = QuestionCategory[cat_name.upper()]
+                        profile.answered_categories.add(cat_enum)
+                    except (KeyError, ValueError):
+                        pass
+
+            # Update lifestyle notes and salary info
+            if extracted_info.get("lifestyle_notes"):
+                profile.lifestyle_notes = extracted_info["lifestyle_notes"]
+            if extracted_info.get("estimated_salary_range"):
+                profile.estimated_salary = extracted_info["estimated_salary_range"]
+
+        except Exception as e:
+            self.logger.error(f"Error in _update_profile_from_message: {str(e)}", exc_info=True)
+
     def _extract_all_info(self, profile: UserProfile, message: str) -> None:
         """Extract ALL info with fuzzy matching."""
         msg = message.strip()
@@ -371,22 +427,23 @@ class ProcessUserMessageUseCase:
             
             known_str = ", ".join(known_items) if known_items else ""
             
-            message_text = f"""KULLANICI HAKKINDA BİLİNENLER:
-{memory}
-
-STRATEJİK DANIŞMAN ANALİZİ (GİZLİ):
-- Hedef Segment: {advisor_analysis.get('tier', 'A')} ({pkg.get('range', '7-9M')})
-- Odak: {pkg.get('focus', 'Konfor')}
-- Önerilen Yönlendirme: "{guidance}"
+            # Build known items list
+            known_str = self._get_detailed_memory(profile)
+            
+            message_text = f"""BİLGE DANIŞMAN ANALİZİ:
+- Mevcut Profil: {known_str}
+- Tavsiye Edilen Yönlendirme (Cevaba yedirilecek): "{guidance}"
 
 SON SOHBET:
 {history}
 
-EKSİK BİLGİLER: {', '.join(missing) if missing else 'Tamamlandı'}
+EKSİK BİLGİ ALANLARI: {', '.join(missing) if missing else 'Kritik veriler tam.'}
 
 GÖREV:
-Kullanıcının son mesajına samimi yanıt ver. Stratejik yönlendirmeyi doğal bir şekilde cümleye yedir. Hem kullanıcıyı tanı hem de onu doğru segmente ısındır. 
-Robofik olma, analizden bahsetme.
+1. Kullanıcının son mesajına BILGECE ve SAMİMİ bir yanıt ver.
+2. Tavsiye edilen yönlendirmeyi (guidance_cue) doğal bir şekilde cümlene ekle.
+3. Eksik bilgilerden birini öğrenmek için DOLAYLI bir soru sor (Doğrudan soru sorma!).
+4. Cevap çok kısa (en fazla 3 cümle) olsun.
 
 Yanıt:"""
 

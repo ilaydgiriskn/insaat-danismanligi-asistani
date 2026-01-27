@@ -21,26 +21,20 @@ class InformationExtractor:
     ) -> dict:
         """Extract profile information from user message."""
         
-        prompt = f"""Kullanıcının mesajından ve konuşma geçmişinden profil bilgilerini çıkar.
+        prompt = f"""Kullanıcının son mesajından profil bilgilerini çıkar. Eğer mesaj kısa veya bağlamsal ise (örneğin "evet", "hayır", "farketmez"), MUTLAKA konuşma geçmişindeki son soruya bakarak neye cevap verildiğini anla.
 
-Kullanıcı Mesajı: "{message}"
+Son Mesaj: "{message}"
 
-Konuşma Geçmişi:
+Konuşma Geçmişi (Sondan başa doğru):
 {conversation_history}
 
 GÖREV:
-1. Kullanıcının verdiği bilgileri (isim, email, meslek, medeni durum vb.) çıkar.
-2. Sadece kesin bilgileri al. Tahmin yapma.
-3. 'answered_categories' listesine, mesajda cevabı bulunan kategorileri ekle.
+1. Kullanıcının verdiği net bilgileri (isim, email, meslek, medeni durum vb.) çıkar.
+2. Bağlamsal Cevaplar: Eğer son soru "Çocuğunuz var mı?" ise ve mesaj "Evet" ise, `has_children` değerini `true` yap. Bu mantığı tüm sorular için uygula.
+3. 'answered_categories' listesine, mesajda cevabı bulunan kategorileri (name, budget, family vb.) ekle.
+4. Çıkarımlar: `estimated_salary_range` (meslekten) ve `lifestyle_notes` (hobilerden) alanlarını doldur.
 
-Kategoriler:
-- name, email, phone, hometown, profession, marital_status, has_children, budget, location, property_type, rooms, salary, hobbies, pets
-
-AYRICA ŞU ÇIKARIMLARI YAP (Bunlar kategorilere eklenmez):
-- estimated_salary_range: Meslekten tahmini maaş aralığı
-- lifestyle_notes: Hobilerden yaşam tarzı notları
-
-Cevap formatı JSON olmalı."""
+Cevap formatı kesinlikle JSON olmalıdır."""
 
         try:
             response = await self.llm_service.generate_structured_response(

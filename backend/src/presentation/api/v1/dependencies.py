@@ -8,7 +8,7 @@ from infrastructure.database.repositories import (
     SQLAlchemyUserRepository,
     SQLAlchemyConversationRepository,
 )
-from infrastructure.llm import LangChainService, SimplePromptManager
+from infrastructure.llm import LangChainService, SimplePromptManager, InformationExtractor
 from application.agents import QuestionAgent, ValidationAgent, AnalysisAgent
 from application.use_cases import ProcessUserMessageUseCase
 from domain.repositories import IUserRepository, IConversationRepository
@@ -112,6 +112,7 @@ async def get_process_message_use_case(
     question_agent = QuestionAgent(llm_service, prompt_manager)
     validation_agent = ValidationAgent(llm_service, prompt_manager)
     analysis_agent = AnalysisAgent(llm_service, prompt_manager)
+    info_extractor = InformationExtractor(llm_service)
     
     return ProcessUserMessageUseCase(
         user_repository=user_repo,
@@ -119,4 +120,5 @@ async def get_process_message_use_case(
         question_agent=question_agent,
         validation_agent=validation_agent,
         analysis_agent=analysis_agent,
+        information_extractor=info_extractor,
     )

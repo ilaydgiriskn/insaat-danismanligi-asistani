@@ -50,7 +50,7 @@ class AnalysisAgent(BaseAgent):
             return self._fallback_guidance(user_profile)
             
     def _assess_tier(self, profile: UserProfile) -> dict:
-        """Internal heuristic for tier assignment."""
+        """Internal heuristic for tier assignment with risk appetite and motivation."""
         salary_val = 0
         if profile.estimated_salary:
             try:
@@ -60,26 +60,27 @@ class AnalysisAgent(BaseAgent):
                 pass
         
         profession = (profile.profession or "").lower()
+        marital_status = (profile.marital_status or "").lower()
         
         # Default Tier A
         tier = "A"
-        motivation = "Genel konfor ve aile odaklı başlangıç seviyesi."
+        motivation = "Yaşam konforu ve başlangıç seviyesi bir yatırım."
         is_near_upgrade = False
 
-        # Tier C Heuristics
-        if salary_val >= 150000 or any(p in profession for p in ["pilot", "doktor", "yönetic", "ceo", "iş adamı", "iş kadını"]):
+        # Tier C Heuristics (High potential or status)
+        if salary_val >= 150000 or any(p in profession for p in ["pilot", "doktor", "yönetic", "ceo", "iş adamı", "iş kadını", "mimar"]):
             tier = "C"
-            motivation = "Yüksek gelir ve statü odaklı lüks beklentisi."
-        # Tier B Heuristics
-        elif salary_val >= 80000 or any(p in profession for p in ["mühendis", "avukat", "mimar", "esnaf"]):
+            motivation = "Lüks, özel tasarım ve yüksek yatırım potansiyeli."
+        # Tier B Heuristics (Established professional)
+        elif salary_val >= 80000 or any(p in profession for p in ["mühendis", "avukat", "esnaf", "yazılımcı"]):
             tier = "B"
-            motivation = "Prestij ve geniş alan arayışı, orta-üst segment."
-            if salary_val >= 130000:
-                is_near_upgrade = True # Close to C
+            motivation = "Prestij, geniş sosyal donatı ve modern yaşam."
+            if salary_val >= 130000 or marital_status == "evli":
+                is_near_upgrade = True # Close to C/Higher value
         else:
             if salary_val >= 60000:
                 is_near_upgrade = True # Close to B
-        
+
         packages = {
             "A": {
                 "range": "7 - 9 Milyon TL",
@@ -109,9 +110,9 @@ class AnalysisAgent(BaseAgent):
         }
 
     def _build_guidance_prompt(self, profile: UserProfile, assessment: dict) -> str:
-        """Prompt for generating professional conversational cues."""
+        """Prompt for generating professional conversational cues matching the user's potential."""
         pkg = assessment["package"]
-        upgrade_text = "Kullanıcı bir üst segmente yakın, onu çok hafifçe yukarıya teşvik et." if assessment["is_near_upgrade"] else ""
+        upgrade_text = "Kullanıcı bir üst segmente yakın, onu çok hafifçe ve doğal bir şekilde yukarıya (yatırım değeri veya prestij vurgusuyla) teşvik et." if assessment["is_near_upgrade"] else ""
         
         return f"""
 KULLANICI PROFİLİ:
@@ -123,13 +124,15 @@ KULLANICI PROFİLİ:
 ANALİZİMİZ:
 - SEGMENT: {assessment['tier']} Paketi ({pkg['range']})
 - ODAK NOKTASI: {pkg['focus']}
+- MOTİVASYON: {assessment['motivation']}
 - {upgrade_text}
 
 GÖREV:
-Bu kullanıcıya bir sonraki cümlesinde kullanılmak üzere, {assessment['tier']} segmentindeki avantajları veya {assessment['tier']}'den bir üst segmente geçmenin mantığını vurgulayan SAMİMİ ve DANIŞMANCA bir cümle üret. 
-Asla "A Paketi" veya "Bütçeniz bu" gibi teknik terimler kullanma. 
-"Sizin gibi biri genelde..." veya "Aslında bir tık daha..." gibi doğal kalıplar kullan.
-Yanıt sadece 1 cümle olsun.
+Bu kullanıcıyı hissettirmeden {assessment['tier']} segmentindeki bir yaşama veya {assessment['tier']}'den bir üst segmente geçmenin avantajlarına yönlendirecek BİLGECE bir tavsiye cümlesi üret.
+- Cümle doğal bir sohbetin parçası gibi olmalı.
+- "A segmenti size uygun" gibi teknik ifadelerden kaçın.
+- "Sizin gibi vizyon sahibi kişiler genelde..." veya "Aslında şu yöne bir tık daha pay ayırmak seçenekleri ciddi genişletiyor..." gibi kalıplar kullan.
+- Yanıt sadece 1 cümle olsun.
 """
 
     def _fallback_guidance(self, user_profile: UserProfile) -> dict:
