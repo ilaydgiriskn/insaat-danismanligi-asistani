@@ -1,4 +1,4 @@
-"""Process user message - Strict question order, no unnecessary info."""
+"""Process user message - Natural conversation with proper data persistence."""
 
 from typing import Optional
 from uuid import UUID
@@ -19,49 +19,31 @@ SYSTEM_PROMPT = """Sen samimi ve doğal bir AI emlak danışmanı Ayşe'sin.
 SOHBET TARZI:
 - Doğal, akıcı, samimi
 - 2-4 cümle arası (bağlama göre)
-- Katı sıra yok, sohbet bağlamına göre sor
-- Kullanıcıyı zorlamıyorsun, cevap vermezse geç
+- Kullanıcıyı zorlamıyorsun
 
-TOPLANACAK BİLGİLER (esnek sıra):
+BİLGİ TOPLAMA (esnek, doğal):
 - İsim, şehir, meslek
 - Medeni durum, çocuk
-- Hobi, evcil hayvan  
-- Ev için: bütçe, şehir, oda sayısı
+- Hobi, yaşam tarzı
+- Sonra ev konuları (ama "ev arayışı" deme, yumuşak ol)
 
-DOĞAL GEÇİŞLER:
-- Kullanıcı bir şey söylerse ona uygun soru sor
-- Mesela "evliyim" derse → çocuk sor
-- "Spor yapıyorum" derse → buna yorum yap, sonra devam et
-- Kullanıcı geçiştirirse → farklı konuya geç
+EV KONUSU İÇİN YUMUŞAK İFADELER:
+- "Ev arayışındasınız" DEMİYORSUN
+- Bunun yerine: "İleride taşınmayı düşünür müsün?", "Farklı bir yere yerleşmek ister misin?"
+- Ya da: "Yaşam alanı olarak ne düşünüyorsun?"
 
 ZORLAMAK YOK:
-- "ok", "bilmem", "geçelim" gibi cevaplara → başka konuya geç
+- Cevap vermezse geç
 - Aynı soruyu iki kez sorma
 
-EMOJİ:
-- Bazen, her mesajda değil
-- Farklı emojiler
+EMOJİ: Bazen, her mesajda değil, farklı emojiler
 
-"sen" sorusuna kısa cevap ver, sonra sohbete devam et.
+"sen" sorusuna kısa cevap ver.
 Türkçe, samimi, doğal."""
 
 
 class ProcessUserMessageUseCase:
-    """Strict question order with no skipping."""
-    
-    # Question order - strictly followed
-    QUESTION_ORDER = [
-        ("name", "isim", None),
-        ("hometown", "memleket", "Nereli olduğunu sorabilir miyim?"),
-        ("profession", "meslek", "Ne iş yapıyorsun?"),
-        ("marital", "medeni durum", "Evli misin, bekar mı?"),
-        ("children", "çocuk", "Çocuğunuz var mı?"),
-        ("hobbies", "hobi", "Boş zamanlarında ne yapmayı seversin?"),
-        ("pets", "evcil hayvan", "Evcil hayvanın var mı?"),
-        ("budget", "bütçe", "Ev için düşündüğün bir bütçe var mı?"),
-        ("target_city", "ev şehri", "Hangi şehirde ev arıyorsun?"),
-        ("rooms", "oda sayısı", "Kaç odalı bir ev düşünüyorsun?"),
-    ]
+    """Natural conversation with proper data persistence."""
     
     def __init__(
         self,
@@ -79,36 +61,38 @@ class ProcessUserMessageUseCase:
         self.logger = get_logger(self.__class__.__name__)
     
     async def execute(self, session_id: str, user_message: str) -> dict:
-        """Process with strict question order."""
+        """Process message naturally."""
         try:
             profile = await self._get_or_create_profile(session_id)
             conversation = await self._get_or_create_conversation(profile.id)
             
             conversation.add_user_message(user_message)
             
-            # Extract info
-            await self._extract_info(profile, conversation, user_message)
+            # Extract ALL possible info from message
+            self._extract_all_info(profile, user_message)
             
             await self.user_repo.update(profile)
             await self.conversation_repo.update(conversation)
             
-            # Get next question in order
-            current_step = self._get_current_step(profile)
-            self.logger.info(f"Current step: {current_step}")
+            # Log what we have
+            self.logger.info(f"Profile: name={profile.name}, hometown={profile.hometown}, profession={profile.profession}, marital={profile.marital_status}")
+            
+            # Get missing info
+            missing = self._get_missing_info(profile)
             
             # Generate response
-            response = await self._generate_response(profile, conversation, current_step)
+            response = await self._generate_response(profile, conversation, missing)
             
             conversation.add_assistant_message(response)
             await self.conversation_repo.update(conversation)
             
-            is_complete = current_step == "complete"
+            is_complete = not missing
             
             return {
                 "response": response,
                 "type": "analysis" if is_complete else "question",
                 "is_complete": is_complete,
-                "category": current_step,
+                "category": None,
             }
             
         except Exception as e:
@@ -119,8 +103,118 @@ class ProcessUserMessageUseCase:
                 "is_complete": False,
             }
     
-    def _get_current_step(self, profile: UserProfile) -> str:
-        """Get suggested topics based on what's missing - FLEXIBLE."""
+    def _extract_all_info(self, profile: UserProfile, message: str) -> None:
+        """Extract ALL possible info from message - not step-dependent."""
+        msg = message.strip()
+        msg_lower = msg.lower()
+        
+        # Clean message
+        clean = msg_lower.replace(" sen", "").replace("sen ", "").strip()
+        
+        # Skip if greeting only
+        if clean in GREETINGS:
+            return
+        
+        # Extract NAME (if we don't have it and message is short)
+        if not profile.name and len(clean.split()) <= 3:
+            words = [w for w in clean.split() if w not in GREETINGS and w not in ['benim', 'adım', 'ben', 'evet', 'hayır']]
+            if words and len(words[0]) > 1:
+                profile.name = words[0].title()
+                profile.answered_categories.add(QuestionCategory.NAME)
+                self.logger.info(f"Extracted name: {profile.name}")
+                return  # Name was the answer
+        
+        # Extract CITY (common Turkish cities)
+        cities = ['istanbul', 'ankara', 'izmir', 'gaziantep', 'antalya', 'bursa', 'adana', 
+                 'konya', 'samsun', 'trabzon', 'amasya', 'mersin', 'kayseri', 'diyarbakır',
+                 'eskişehir', 'denizli', 'malatya', 'erzurum', 'van', 'mardin', 'muğla']
+        for city in cities:
+            if city in clean:
+                if not profile.hometown:
+                    profile.hometown = city.title()
+                    profile.answered_categories.add(QuestionCategory.HOMETOWN)
+                    self.logger.info(f"Extracted hometown: {profile.hometown}")
+                elif not profile.location:
+                    # Might be target city for home
+                    from domain.value_objects import Location
+                    profile.location = Location(city=city.title(), country="Turkey")
+                    profile.answered_categories.add(QuestionCategory.LOCATION)
+                    self.logger.info(f"Extracted target city: {city}")
+                break
+        
+        # Extract PROFESSION (common professions)
+        professions = ['doktor', 'mühendis', 'öğretmen', 'avukat', 'hemşire', 'esnaf', 
+                      'mimar', 'muhasebeci', 'yazılımcı', 'polis', 'asker', 'memur',
+                      'bankacı', 'gazeteci', 'şoför', 'aşçı', 'garson']
+        for prof in professions:
+            if prof in clean and not profile.profession:
+                profile.profession = prof.title()
+                profile.answered_categories.add(QuestionCategory.PROFESSION)
+                self.logger.info(f"Extracted profession: {profile.profession}")
+                break
+        
+        # Also check for profession patterns
+        if not profile.profession:
+            prof_patterns = [
+                r'(\w+)\s*(olarak çalışıyorum|işi yapıyorum)',
+                r'ben\s+(\w+)',
+            ]
+            for pattern in prof_patterns:
+                match = re.search(pattern, clean)
+                if match:
+                    potential = match.group(1)
+                    if potential not in GREETINGS and len(potential) > 2:
+                        if potential.endswith('ım') or potential.endswith('im') or potential.endswith('um'):
+                            # Remove suffix
+                            potential = potential[:-2] if len(potential) > 4 else potential
+                        profile.profession = potential.title()
+                        profile.answered_categories.add(QuestionCategory.PROFESSION)
+                        self.logger.info(f"Extracted profession from pattern: {profile.profession}")
+                        break
+        
+        # Extract MARITAL STATUS
+        if not profile.marital_status:
+            if 'evliyim' in clean or 'evli' in clean:
+                profile.marital_status = "evli"
+                profile.answered_categories.add(QuestionCategory.MARITAL_STATUS)
+                self.logger.info("Extracted: evli")
+            elif 'bekarım' in clean or 'bekar' in clean:
+                profile.marital_status = "bekar"
+                profile.answered_categories.add(QuestionCategory.MARITAL_STATUS)
+                self.logger.info("Extracted: bekar")
+        
+        # Extract CHILDREN info
+        if profile.has_children is None:
+            if 'çocuğum yok' in clean or 'çocuk yok' in clean:
+                profile.has_children = False
+                profile.family_size = 0
+                profile.answered_categories.add(QuestionCategory.CHILDREN)
+            elif 'çocuğum var' in clean or 'çocuk var' in clean or 'tane' in clean:
+                profile.has_children = True
+                nums = re.findall(r'\d+', clean)
+                profile.family_size = int(nums[0]) if nums else 1
+                profile.answered_categories.add(QuestionCategory.CHILDREN)
+                self.logger.info(f"Extracted children: {profile.family_size}")
+        
+        # Extract HOBBIES
+        hobbies = ['spor', 'yüzme', 'koşu', 'futbol', 'basketbol', 'tenis', 'golf',
+                  'okumak', 'kitap', 'müzik', 'sinema', 'tiyatro', 'yemek', 'seyahat',
+                  'fotoğraf', 'resim', 'dans', 'yoga', 'pilates']
+        for hobby in hobbies:
+            if hobby in clean and not profile.hobbies:
+                profile.hobbies = [hobby]
+                profile.answered_categories.add(QuestionCategory.HOBBIES)
+                self.logger.info(f"Extracted hobby: {hobby}")
+                break
+        
+        # Extract EMAIL
+        email = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', msg)
+        if email and not profile.email:
+            profile.email = email.group()
+            profile.answered_categories.add(QuestionCategory.EMAIL)
+    
+    def _get_missing_info(self, profile: UserProfile) -> list:
+        """Get list of missing info."""
         missing = []
         
         if not profile.name:
@@ -131,207 +225,113 @@ class ProcessUserMessageUseCase:
             missing.append("meslek")
         if not profile.marital_status:
             missing.append("medeni durum")
-        if profile.marital_status and 'evli' in profile.marital_status.lower():
-            if profile.has_children is None:
-                missing.append("çocuk")
+        
+        # If married, need children info
+        if profile.marital_status == "evli" and profile.has_children is None:
+            missing.append("çocuk")
+        
         if not profile.hobbies:
             missing.append("hobi")
-        if QuestionCategory.PETS not in profile.answered_categories:
-            missing.append("evcil hayvan")
-        if not profile.budget:
-            missing.append("bütçe")
-        if not profile.location:
-            missing.append("ev şehri")
-        if not profile.property_preferences:
-            missing.append("oda sayısı")
         
-        if not missing:
-            return "complete"
+        # Home-related (later in conversation)
+        basic_done = profile.name and profile.hometown and profile.profession
+        if basic_done:
+            if not profile.budget:
+                missing.append("yaşam tercihi")  # Softer than "bütçe"
+            if not profile.location:
+                missing.append("taşınma düşüncesi")  # Softer than "ev şehri"
         
-        # Return all missing as suggestion (LLM decides)
-        return ", ".join(missing[:3])  # Max 3 suggestions
+        return missing
     
-    async def _extract_info(self, profile: UserProfile, conversation: Conversation, message: str) -> None:
-        """Extract info from message."""
-        msg = message.strip()
-        msg_lower = msg.lower()
-        
-        # Remove "sen" questions for extraction
-        clean_msg = msg_lower.replace(" sen", "").replace("sen ", "").strip()
-        
-        # Get current step to know what we're expecting
-        current = self._get_current_step(profile)
-        
-        if current == "name" and msg_lower not in GREETINGS:
-            # Extract name
-            words = [w for w in clean_msg.split() if w not in GREETINGS and w not in ['benim', 'adım', 'ben']]
-            if words:
-                profile.name = words[0].title()
-                profile.answered_categories.add(QuestionCategory.NAME)
-        
-        elif current == "hometown":
-            # Extract city
-            cities = ['istanbul', 'ankara', 'izmir', 'gaziantep', 'antalya', 'bursa', 'adana', 
-                     'konya', 'samsun', 'trabzon', 'amasya', 'mersin', 'kayseri', 'diyarbakır']
-            for city in cities:
-                if city in clean_msg:
-                    profile.hometown = city.title()
-                    profile.answered_categories.add(QuestionCategory.HOMETOWN)
-                    break
-            if not profile.hometown and len(clean_msg) < 30:
-                profile.hometown = clean_msg.title()
-                profile.answered_categories.add(QuestionCategory.HOMETOWN)
-        
-        elif current == "profession":
-            profile.profession = clean_msg
-            profile.answered_categories.add(QuestionCategory.PROFESSION)
-        
-        elif current == "marital":
-            if 'evli' in clean_msg:
-                profile.marital_status = "evli"
-            elif 'bekar' in clean_msg:
-                profile.marital_status = "bekar"
-            else:
-                profile.marital_status = clean_msg
-            profile.answered_categories.add(QuestionCategory.MARITAL_STATUS)
-        
-        elif current == "children":
-            if 'yok' in clean_msg or 'hayır' in clean_msg:
-                profile.has_children = False
-                profile.family_size = 0
-            else:
-                profile.has_children = True
-                nums = re.findall(r'\d+', clean_msg)
-                profile.family_size = int(nums[0]) if nums else 1
-            profile.answered_categories.add(QuestionCategory.CHILDREN)
-        
-        elif current == "hobbies":
-            profile.hobbies = [clean_msg]
-            profile.answered_categories.add(QuestionCategory.HOBBIES)
-        
-        elif current == "pets":
-            profile.answered_categories.add(QuestionCategory.PETS)
-        
-        elif current == "budget":
-            nums = re.findall(r'(\d+)', clean_msg.replace('.', '').replace(',', ''))
-            if nums:
-                from domain.value_objects import Budget
-                amt = int(nums[0])
-                if amt < 100:  # Probably millions
-                    amt = amt * 1000000
-                elif amt < 10000:  # Probably thousands
-                    amt = amt * 1000
-                profile.budget = Budget(min_amount=int(amt * 0.8), max_amount=int(amt * 1.2))
-                profile.answered_categories.add(QuestionCategory.BUDGET)
-        
-        elif current == "target_city":
-            from domain.value_objects import Location
-            profile.location = Location(city=clean_msg.title(), country="Turkey")
-            profile.answered_categories.add(QuestionCategory.LOCATION)
-        
-        elif current == "rooms":
-            from domain.value_objects import PropertyPreferences
-            from domain.enums import PropertyType
-            nums = re.findall(r'\d+', clean_msg)
-            rooms = int(nums[0]) if nums else 3
-            profile.property_preferences = PropertyPreferences(
-                property_type=PropertyType.APARTMENT,
-                min_rooms=rooms
-            )
-            profile.answered_categories.add(QuestionCategory.ROOMS)
-    
-    async def _generate_response(self, profile: UserProfile, conversation: Conversation, next_step: str) -> str:
-        """Generate response with next question."""
+    async def _generate_response(self, profile: UserProfile, conversation: Conversation, missing: list) -> str:
+        """Generate natural response - fully LLM-driven."""
         try:
-            history = self._get_history(conversation, 4)
+            history = self._get_history(conversation, 6)
+            memory = self._get_memory(profile)
             
-            # Check if user asked "sen" question
-            last_msg = ""
-            recent = conversation.get_recent_messages(1)
-            if recent:
-                last_msg = recent[0].content.lower()
-            has_sen_question = "sen" in last_msg
+            topic = missing[0] if missing else "sohbete devam"
             
-            # Step-specific prompts
-            step_hints = {
-                "name": "tanışma, isim sor",
-                "hometown": "nereli olduğunu sor",
-                "profession": "ne iş yaptığını sor",
-                "marital": "evli mi bekar mı sor",
-                "children": "çocuğu var mı sor",
-                "hobbies": "hobisini sor",
-                "pets": "evcil hayvanı var mı sor",
-                "budget": "ev için bütçesini sor",
-                "target_city": "hangi şehirde ev aradığını sor",
-                "rooms": "kaç oda istediğini sor",
-                "complete": "tamamlandı, teşekkür et",
-            }
-            
-            prompt = f"""SOHBET:
+            prompt = f"""BİLİNEN BİLGİLER: {memory}
+
+SON SOHBET:
 {history}
 
-SONRAKİ SORU: {step_hints.get(next_step, next_step)}
-{"KULLANICI 'SEN' DİYE SORDU - KISA CEVAP VER: 'Ben Ayşe!' veya 'Ben AI asistanım' SONRA kendi sorunu sor" if has_sen_question else ""}
-İSİM: {profile.name or 'bilinmiyor'}
+EKSİK BİLGİLER: {', '.join(missing[:5]) if missing else 'Tüm temel bilgiler alındı'}
 
 GÖREV:
-1. Önceki cevaba kısa yorum (1 cümle)
-2. {step_hints.get(next_step, 'sohbete devam')}
-3. MAX 2-3 cümle
-4. Gereksiz bilgi verme (sorulmadan "yapay zekayım" deme)
+Kullanıcının son mesajına samimi ve doğal bir yanıt ver. 
+Sonra eksik bilgilerden birini öğrenmek için soru sor.
 
-Yanıt:"""
+ÖNEMLİ KURALLAR:
+- 3-5 cümle yaz (zengin ama uzatma)
+- Önceki mesaja bağlan
+- Şehir/meslek söylediyse yorumla
+- Zaten bilinen şeyleri tekrar sorma
+- "Ev arayışındasınız" gibi direkt ifadeler kullanma
+- Doğal geçişler yap
+
+{"İSİM BİLİNİYOR: " + profile.name + " - kullan" if profile.name else "İSMİ ÖĞRENMELİSİN"}
+{"MESLEK BİLİNİYOR: " + profile.profession + " - tekrar sorma" if profile.profession else ""}
+
+Sadece yanıt metnini yaz (sabit kalıplar kullanma, her mesajı yeni üret):"""
 
             response = await self.question_agent.llm_service.generate_response(
                 prompt=prompt,
                 system_message=SYSTEM_PROMPT,
-                temperature=0.8,
-                max_tokens=100
+                temperature=0.9,  # More creative
+                max_tokens=200  # Longer responses
             )
             
             result = response.strip()
             
-            # Prevent asking for name when we have it
-            if profile.name and any(p in result.lower() for p in ["ismin", "adın ne"]):
-                return self._fallback(profile, next_step)
+            # Remove any prefix
+            if result.startswith("A:") or result.startswith("Ayşe:"):
+                result = result.split(":", 1)[1].strip()
             
             return result
             
         except Exception as e:
             self.logger.error(f"Generate error: {e}")
-            return self._fallback(profile, next_step)
+            # Minimal fallback only for errors
+            if not profile.name:
+                return "Merhaba! Ben Ayşe, AI emlak danışmanınızım. Seninle tanışmak isterim, adın ne?"
+            return f"Devam edelim {profile.name}! Seninle sohbet etmek güzel."
     
-    def _fallback(self, profile: UserProfile, step: str) -> str:
-        """Simple fallback questions."""
+    def _fallback(self, profile: UserProfile, topic: str) -> str:
+        """Minimal fallback - only for critical errors."""
         name = profile.name or ""
-        
-        fallbacks = {
-            "name": "Merhaba! Ben Ayşe. Adın ne?",
-            "hometown": f"{name}, nereli olduğunu sorabilir miyim?",
-            "profession": f"Ne iş yapıyorsun {name}?",
-            "marital": "Evli misin, bekar mı?",
-            "children": "Çocuğunuz var mı?",
-            "hobbies": f"Boş zamanlarında ne yapmayı seversin {name}?",
-            "pets": "Evcil hayvanın var mı?",
-            "budget": f"{name}, ev için düşündüğün bir bütçe var mı?",
-            "target_city": "Hangi şehirde ev arıyorsun?",
-            "rooms": "Kaç odalı bir ev düşünüyorsun?",
-            "complete": f"Harika {name}! Tüm bilgileri aldım, şimdi sana uygun evler önerebilirim.",
-        }
-        
-        return fallbacks.get(step, f"Devam edelim {name}!")
+        if not name:
+            return "Merhaba! Ben Ayşe. Adın ne?"
+        return f"Devam edelim {name}!"
     
     def _get_history(self, conversation: Conversation, count: int = 4) -> str:
-        """Get history."""
+        """Get history - clean format."""
         recent = conversation.get_recent_messages(count)
         if not recent:
             return "Yeni sohbet"
         
         lines = []
         for msg in recent:
-            role = "K" if msg.role.value == "user" else "A"
+            role = "Kullanıcı" if msg.role.value == "user" else "Ayşe"
             lines.append(f"{role}: {msg.content}")
         return "\n".join(lines)
+    
+    def _get_memory(self, profile: UserProfile) -> str:
+        """Get memory."""
+        parts = []
+        if profile.name:
+            parts.append(f"İsim: {profile.name}")
+        if profile.hometown:
+            parts.append(f"Şehir: {profile.hometown}")
+        if profile.profession:
+            parts.append(f"Meslek: {profile.profession}")
+        if profile.marital_status:
+            parts.append(f"Durum: {profile.marital_status}")
+        if profile.has_children is not None:
+            parts.append(f"Çocuk: {'var' if profile.has_children else 'yok'}")
+        if profile.hobbies:
+            parts.append(f"Hobi: {profile.hobbies[0]}")
+        return ", ".join(parts) if parts else "Henüz bilgi yok"
     
     async def _get_or_create_profile(self, session_id: str) -> UserProfile:
         try:
