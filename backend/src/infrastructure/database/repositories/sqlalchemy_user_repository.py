@@ -86,15 +86,14 @@ class SQLAlchemyUserRepository(IUserRepository):
             updated_at=entity.updated_at,
             name=entity.name,
             email=entity.email,
-            phone=entity.phone,
+            phone_number=entity.phone_number,
             hometown=entity.hometown,
             profession=entity.profession,
             marital_status=entity.marital_status,
             has_children=entity.has_children,
-            family_size=entity.family_size,
-            hobbies=entity.hobbies,
             estimated_salary=entity.estimated_salary,
-            lifestyle_notes=entity.lifestyle_notes,
+            hobbies=entity.hobbies,
+            family_size=entity.family_size,
             answered_categories=[cat.value for cat in entity.answered_categories],
         )
         
@@ -126,15 +125,14 @@ class SQLAlchemyUserRepository(IUserRepository):
         model.updated_at = entity.updated_at
         model.name = entity.name
         model.email = entity.email
-        model.phone = entity.phone
+        model.phone_number = entity.phone_number
         model.hometown = entity.hometown
         model.profession = entity.profession
         model.marital_status = entity.marital_status
         model.has_children = entity.has_children
-        model.family_size = entity.family_size
-        model.hobbies = entity.hobbies
         model.estimated_salary = entity.estimated_salary
-        model.lifestyle_notes = entity.lifestyle_notes
+        model.hobbies = entity.hobbies
+        model.family_size = entity.family_size
         model.answered_categories = [cat.value for cat in entity.answered_categories]
         
         # Budget
@@ -194,7 +192,6 @@ class SQLAlchemyUserRepository(IUserRepository):
         # Reconstruct PropertyPreferences value object
         property_preferences = None
         if model.property_type:
-            from domain.enums import PropertyType
             property_preferences = PropertyPreferences(
                 property_type=PropertyType(model.property_type),
                 min_rooms=model.min_rooms,
@@ -216,18 +213,17 @@ class SQLAlchemyUserRepository(IUserRepository):
             updated_at=model.updated_at,
             name=model.name,
             email=model.email,
-            phone=model.phone,
+            phone_number=model.phone_number,
             hometown=model.hometown,
             profession=model.profession,
             marital_status=model.marital_status,
             has_children=model.has_children,
+            estimated_salary=model.estimated_salary,
+            hobbies=model.hobbies or [],
             budget=budget,
             location=location,
             property_preferences=property_preferences,
             family_size=model.family_size,
-            hobbies=model.hobbies,
-            estimated_salary=model.estimated_salary,
-            lifestyle_notes=model.lifestyle_notes,
             answered_categories=answered_categories,
         )
         

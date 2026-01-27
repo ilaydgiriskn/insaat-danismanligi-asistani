@@ -25,11 +25,13 @@ class UserProfile:
     # User information
     name: Optional[str] = None
     email: Optional[str] = None
-    phone: Optional[str] = None
+    phone_number: Optional[str] = None
     hometown: Optional[str] = None
     profession: Optional[str] = None
     marital_status: Optional[str] = None
     has_children: Optional[bool] = None
+    hobbies: list[str] = field(default_factory=list)
+    estimated_salary: Optional[str] = None
     
     # Preferences (Value Objects)
     budget: Optional[Budget] = None
@@ -38,18 +40,9 @@ class UserProfile:
     
     # Additional information
     family_size: Optional[int] = None
-    hobbies: Optional[list] = None
-    estimated_salary: Optional[str] = None
-    lifestyle_notes: Optional[str] = None
     
     # Tracking
     answered_categories: set[QuestionCategory] = field(default_factory=set)
-    
-    def update_name(self, name: str) -> None:
-        """Update user's name."""
-        self.name = name
-        self.answered_categories.add(QuestionCategory.NAME)
-        self._mark_updated()
     
     def update_budget(self, budget: Budget) -> None:
         """Update user's budget preference."""
@@ -75,6 +68,21 @@ class UserProfile:
         """Update family size information."""
         self.family_size = family_size
         self.answered_categories.add(QuestionCategory.FAMILY_SIZE)
+        self._mark_updated()
+    
+    def update_name(self, name: str) -> None:
+        """Update user's name."""
+        self.name = name
+        self._mark_updated()
+    
+    def update_contact_info(self, email: Optional[str] = None, phone_number: Optional[str] = None) -> None:
+        """Update user's contact information."""
+        if email:
+            self.email = email
+            self.answered_categories.add(QuestionCategory.EMAIL)
+        if phone_number:
+            self.phone_number = phone_number
+            self.answered_categories.add(QuestionCategory.PHONE_NUMBER)
         self._mark_updated()
     
     def has_answered_category(self, category: QuestionCategory) -> bool:

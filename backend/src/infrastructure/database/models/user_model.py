@@ -45,11 +45,13 @@ class UserModel(Base):
     # User information
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    phone_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
     hometown: Mapped[str | None] = mapped_column(String(255), nullable=True)
     profession: Mapped[str | None] = mapped_column(String(255), nullable=True)
     marital_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     has_children: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    estimated_salary: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    hobbies: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     
     # Budget
     budget_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -70,9 +72,6 @@ class UserModel(Base):
     
     # Additional information
     family_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    hobbies: Mapped[list | None] = mapped_column(JSON, nullable=True)
-    estimated_salary: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    lifestyle_notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     
     # Tracking
     answered_categories: Mapped[list] = mapped_column(

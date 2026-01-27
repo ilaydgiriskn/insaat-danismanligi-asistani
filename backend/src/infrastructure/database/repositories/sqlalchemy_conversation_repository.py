@@ -105,7 +105,7 @@ class SQLAlchemyConversationRepository(IConversationRepository):
             role=message.role.value,
             content=message.content,
             timestamp=message.timestamp,
-            message_metadata=message.metadata,
+            additional_data=message.metadata,
         )
         
         model.messages.append(message_model)
@@ -144,7 +144,7 @@ class SQLAlchemyConversationRepository(IConversationRepository):
                 role=message.role.value,
                 content=message.content,
                 timestamp=message.timestamp,
-                message_metadata=message.metadata,
+                additional_data=message.metadata,
             )
             model.messages.append(message_model)
         
@@ -167,7 +167,7 @@ class SQLAlchemyConversationRepository(IConversationRepository):
                 role=message.role.value,
                 content=message.content,
                 timestamp=message.timestamp,
-                message_metadata=message.metadata,
+                additional_data=message.metadata,
             )
             model.messages.append(message_model)
     
@@ -179,7 +179,7 @@ class SQLAlchemyConversationRepository(IConversationRepository):
                 role=MessageRole(msg.role),
                 content=msg.content,
                 timestamp=msg.timestamp,
-                metadata=msg.message_metadata,
+                metadata=msg.additional_data,
             )
             for msg in sorted(model.messages, key=lambda m: m.timestamp)
         ]

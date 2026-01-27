@@ -59,8 +59,8 @@ class ConversationModel(Base):
     
     def __repr__(self) -> str:
         return f"<ConversationModel(id={self.id}, user_profile_id={self.user_profile_id})>"
-
-
+    
+    
 class MessageModel(Base):
     """SQLAlchemy model for messages within conversations."""
     
@@ -90,7 +90,7 @@ class MessageModel(Base):
         nullable=False,
         index=True
     )
-    message_metadata: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    additional_data: Mapped[dict] = mapped_column("message_metadata", JSON, default=dict, nullable=False)
     
     # Relationship to conversation
     conversation: Mapped["ConversationModel"] = relationship(

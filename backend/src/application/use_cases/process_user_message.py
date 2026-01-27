@@ -1,4 +1,4 @@
-"""Process user message - Strong memory, fuzzy matching, no AI name."""
+"""Process user message - Natural conversation with strong memory."""
 
 from typing import Optional
 from uuid import UUID
@@ -92,7 +92,7 @@ class ProcessUserMessageUseCase:
             await self.conversation_repo.update(conversation)
             
             # Log current state
-            self.logger.info(f"STATE: name={profile.name}, city={profile.hometown}, job={profile.profession}, marital={profile.marital_status}")
+            self.logger.info(f"STATE: name={profile.name}, city={profile.hometown}, job={profile.profession}")
             
             # Get missing info
             missing = self._get_missing_info(profile)
@@ -139,7 +139,7 @@ class ProcessUserMessageUseCase:
             if name_match:
                 profile.name = name_match.group(1).title()
                 profile.answered_categories.add(QuestionCategory.NAME)
-                self.logger.info(f"✓ Extracted name: {profile.name}")
+                self.logger.info(f"Extracted name: {profile.name}")
                 return
             
             # Short message without question words might be name
@@ -150,24 +150,23 @@ class ProcessUserMessageUseCase:
                 if potential_name not in self.CITIES and potential_name not in ['doktor', 'mühendis', 'öğretmen']:
                     profile.name = potential_name.title()
                     profile.answered_categories.add(QuestionCategory.NAME)
-                    self.logger.info(f"✓ Extracted name: {profile.name}")
+                    self.logger.info(f"Extracted name: {profile.name}")
                     return
         
         # CITY extraction with FUZZY matching
-        # First try exact match
         city_found = False
         for city in self.CITIES:
             if city in clean:
                 if not profile.hometown:
                     profile.hometown = city.title()
                     profile.answered_categories.add(QuestionCategory.HOMETOWN)
-                    self.logger.info(f"✓ Extracted city (exact): {profile.hometown}")
+                    self.logger.info(f"Extracted city (exact): {profile.hometown}")
                     city_found = True
                 elif not profile.location:
                     from domain.value_objects import Location
                     profile.location = Location(city=city.title(), country="Turkey")
                     profile.answered_categories.add(QuestionCategory.LOCATION)
-                    self.logger.info(f"✓ Extracted target city: {city}")
+                    self.logger.info(f"Extracted target city: {city}")
                     city_found = True
                 break
         
@@ -182,16 +181,15 @@ class ProcessUserMessageUseCase:
                         if not profile.hometown:
                             profile.hometown = city.title()
                             profile.answered_categories.add(QuestionCategory.HOMETOWN)
-                            self.logger.info(f"✓ Extracted city (fuzzy: {word}→{city}): {profile.hometown}")
+                            self.logger.info(f"Extracted city (fuzzy): {profile.hometown}")
                         elif not profile.location:
                             from domain.value_objects import Location
                             profile.location = Location(city=city.title(), country="Turkey")
                             profile.answered_categories.add(QuestionCategory.LOCATION)
                         break
         
-        # PROFESSION extraction - IMPROVED
+        # PROFESSION extraction
         if not profile.profession:
-            # Direct profession words
             professions = {
                 'doktor': 'Doktor',
                 'mühendis': 'Mühendis',
@@ -202,22 +200,16 @@ class ProcessUserMessageUseCase:
                 'mimar': 'Mimar',
                 'muhasebeci': 'Muhasebeci',
                 'yazılımcı': 'Yazılımcı',
-                'yazılım': 'Yazılımcı',  # KEY FIX
+                'yazılım': 'Yazılımcı',
                 'software': 'Yazılımcı',
                 'developer': 'Yazılımcı',
-                'polis': 'Polis',
-                'asker': 'Asker',
-                'memur': 'Memur',
-                'bankacı': 'Bankacı',
-                'gazeteci': 'Gazeteci',
-                'şoför': 'Şoför',
             }
             
             for key, value in professions.items():
                 if key in clean:
                     profile.profession = value
                     profile.answered_categories.add(QuestionCategory.PROFESSION)
-                    self.logger.info(f"✓ Extracted profession ({key}): {profile.profession}")
+                    self.logger.info(f"Extracted profession: {profile.profession}")
                     break
             
             # "X sektörü" pattern
@@ -227,27 +219,23 @@ class ProcessUserMessageUseCase:
                     sector = sector_match.group(1)
                     if sector == 'yazılım' or sector == 'yazilim':
                         profile.profession = 'Yazılımcı'
-                    elif sector == 'sağlık' or sector == 'saglik':
-                        profile.profession = 'Sağlık Sektörü'
                     else:
                         profile.profession = sector.title() + ' Sektörü'
                     profile.answered_categories.add(QuestionCategory.PROFESSION)
-                    self.logger.info(f"✓ Extracted profession (sector): {profile.profession}")
+                    self.logger.info(f"Extracted profession (sector): {profile.profession}")
         
         # MARITAL STATUS
         if not profile.marital_status:
             if 'evliyim' in clean or 'evli' in clean:
                 profile.marital_status = "evli"
                 profile.answered_categories.add(QuestionCategory.MARITAL_STATUS)
-                self.logger.info("✓ Extracted: evli")
             elif 'bekarım' in clean or 'bekar' in clean:
                 profile.marital_status = "bekar"
                 profile.answered_categories.add(QuestionCategory.MARITAL_STATUS)
-                self.logger.info("✓ Extracted: bekar")
         
         # CHILDREN
         if profile.has_children is None:
-            if 'çocuğum yok' in clean or 'çocuk yok' in clean or 'değilim' in clean:
+            if 'çocuğum yok' in clean or 'çocuk yok' in clean:
                 profile.has_children = False
                 profile.family_size = 0
                 profile.answered_categories.add(QuestionCategory.CHILDREN)
@@ -256,18 +244,15 @@ class ProcessUserMessageUseCase:
                 nums = re.findall(r'\d+', clean)
                 profile.family_size = int(nums[0]) if nums else 1
                 profile.answered_categories.add(QuestionCategory.CHILDREN)
-                self.logger.info(f"✓ Extracted children: {profile.family_size}")
         
         # HOBBIES
         if not profile.hobbies:
-            hobbies = ['spor', 'yüzme', 'koşu', 'futbol', 'basketbol', 'tenis', 'golf',
-                      'okumak', 'kitap', 'müzik', 'sinema', 'tiyatro', 'yemek', 'seyahat',
-                      'fotoğraf', 'resim', 'dans', 'yoga', 'pilates']
-            for hobby in hobbies:
+            hobbies_list = ['spor', 'yüzme', 'koşu', 'futbol', 'basketbol', 'tenis', 'golf',
+                          'okumak', 'kitap', 'müzik', 'sinema', 'tiyatro', 'yemek', 'seyahat']
+            for hobby in hobbies_list:
                 if hobby in clean:
                     profile.hobbies = [hobby]
                     profile.answered_categories.add(QuestionCategory.HOBBIES)
-                    self.logger.info(f"✓ Extracted hobby: {hobby}")
                     break
         
         # EMAIL
@@ -275,30 +260,28 @@ class ProcessUserMessageUseCase:
         if email and not profile.email:
             profile.email = email.group()
             profile.answered_categories.add(QuestionCategory.EMAIL)
-            self.logger.info(f"✓ Extracted email: {profile.email}")
         
-        # PHONE NUMBER
+        # PHONE
         if not profile.phone_number:
             phone_patterns = [
-                r'(\+90\s?\d{3}\s?\d{3}\s?\d{2}\s?\d{2})',  # +90 555 123 45 67
-                r'(0\d{3}\s?\d{3}\s?\d{2}\s?\d{2})',        # 0555 123 45 67
-                r'(\d{10})',                                 # 5551234567
+                r'(\+90\s?\d{3}\s?\d{3}\s?\d{2}\s?\d{2})',
+                r'(0\d{3}\s?\d{3}\s?\d{2}\s?\d{2})',
+                r'(\d{10})',
             ]
             for pattern in phone_patterns:
                 match = re.search(pattern, msg.replace('-', '').replace('(', '').replace(')', ''))
                 if match:
                     profile.phone_number = match.group(1)
                     profile.answered_categories.add(QuestionCategory.PHONE_NUMBER)
-                    self.logger.info(f"✓ Extracted phone: {profile.phone_number}")
                     break
         
-        # SALARY/INCOME
+        # SALARY
         if not profile.estimated_salary:
             salary_patterns = [
-                r'(\d+)\s*(bin|k)',                          # 50 bin, 50k
-                r'maaş[ıi]m?\s+(\d+)',                      # maaşım 50000
-                r'gelir[im]?\s+(\d+)',                       # gelirim 50
-                r'(\d+)\s*tl',                               # 50000 TL
+                r'(\d+)\s*(bin|k)',
+                r'maaş[ıi]m?\s+(\d+)',
+                r'gelir[im]?\s+(\d+)',
+                r'(\d+)\s*tl',
             ]
             for pattern in salary_patterns:
                 match = re.search(pattern, clean)
@@ -306,13 +289,12 @@ class ProcessUserMessageUseCase:
                     amount = match.group(1)
                     try:
                         salary = int(amount)
-                        # Normalize
                         if 'bin' in clean or 'k' in clean:
                             salary = salary * 1000
-                        elif salary < 1000:  # Probably in thousands
+                        elif salary < 1000:
                             salary = salary * 1000
-                        profile.estimated_salary = salary
-                        self.logger.info(f"✓ Extracted salary: {salary}")
+                        profile.estimated_salary = str(salary)
+                        profile.answered_categories.add(QuestionCategory.ESTIMATED_SALARY)
                         break
                     except:
                         pass
@@ -321,7 +303,7 @@ class ProcessUserMessageUseCase:
         if not profile.property_preferences or not profile.property_preferences.min_rooms:
             room_patterns = [
                 r'(\d+)\s*(oda|odalı)',
-                r'(\d+)\+\d+',  # 3+1
+                r'(\d+)\+\d+',
             ]
             for pattern in room_patterns:
                 match = re.search(pattern, clean)
@@ -333,15 +315,13 @@ class ProcessUserMessageUseCase:
                         property_type=PropertyType.APARTMENT,
                         min_rooms=rooms
                     )
-                    self.logger.info(f"✓ Extracted rooms: {rooms}")
+                    profile.answered_categories.add(QuestionCategory.ROOMS)
                     break
-
     
     def _get_missing_info(self, profile: UserProfile) -> list:
         """Get missing info - ESSENTIAL first."""
         missing = []
         
-        # Basic identity
         if not profile.name:
             missing.append("isim")
         if not profile.hometown:
@@ -354,24 +334,22 @@ class ProcessUserMessageUseCase:
         if profile.marital_status == "evli" and profile.has_children is None:
             missing.append("çocuk var mı")
         
-        # Quick lifestyle check
         if not profile.hobbies and QuestionCategory.HOBBIES not in profile.answered_categories:
             missing.append("hobi (kısaca)")
         
-        # ESSENTIAL INFO - PRIORITY
+        # ESSENTIAL INFO
         if not profile.email:
-            missing.append("✓ EMAIL (zorunlu)")
+            missing.append("EMAIL (zorunlu)")
         if not profile.phone_number:
-            missing.append("✓ TELEFON (zorunlu)")
+            missing.append("TELEFON (zorunlu)")
         if not profile.estimated_salary:
-            missing.append("✓ AYLIK GELİR/MAAŞ (zorunlu)")
+            missing.append("AYLIK GELİR (zorunlu)")
         
-        # Home requirements
         if not profile.property_preferences or not profile.property_preferences.min_rooms:
-            missing.append("✓ KAÇ ODALI EV (zorunlu)")
+            missing.append("KAÇ ODALI EV (zorunlu)")
         
         if not profile.location:
-            missing.append("taşınma düşüncesi/hedef şehir")
+            missing.append("taşınma düşüncesi")
         
         if not profile.budget:
             missing.append("bütçe aralığı")
@@ -385,37 +363,27 @@ class ProcessUserMessageUseCase:
             memory = self._get_detailed_memory(profile)
             
             # Separate essential from optional
-            essential = [m for m in missing if '✓' in m]
-            optional = [m for m in missing if '✓' not in m]
+            essential = [m for m in missing if 'zorunlu' in m]
+            optional = [m for m in missing if 'zorunlu' not in m]
             
-            prompt = f"""KULLANICI HAKKINDA BİLİNENLER:
-{memory}
-
-SON SOHBET:
-{history}
-
-ZORUNLU EKSİK BİLGİLER (öncelik): {', '.join(essential) if essential else 'Tamamlandı'}
-DİĞER EKSİK: {', '.join(optional) if optional else 'Tamam'}
-
-GÖREV:
-Kullanıcının son mesajına samimi yanıt ver ve SONRAKİ eksik bilgiyi öğren.
-
-KRİTİK KURALLAR:
-- İÇ DEKORASYON, TASARIM, MOBİLYA KONUŞMA! (pilot temalı oda vb. YASAK)
-- Sadece genel bilgi topla (kaç oda, bahçe var mı)
-- Zaten bilinen şeyleri ASLA tekrar sorma
-- 3-4 cümle
-- Adın yok
-
-{"⚠️ BİLİNEN: " + ", ".join([k.split(":")[1].strip() for k in memory.split("\n") if k.startswith("✓")]) if memory != "Henüz bilgi yok" else ""}
-
-Yanıt:"""
+            # Build known items list
+            known_items = []
+            if memory != "Henüz bilgi yok":
+                for line in memory.split("\n"):
+                    if line.startswith("✓"):
+                        parts = line.split(":", 1)
+                        if len(parts) == 2:
+                            known_items.append(parts[1].strip())
+            
+            known_str = ", ".join(known_items) if known_items else ""
+            
+            message_text = f"KULLANICI HAKKINDA BİLİNENLER:\n{memory}\n\nSON SOHBET:\n{history}\n\nZORUNLU EKSİK BİLGİLER (öncelik): {', '.join(essential) if essential else 'Tamamlandı'}\nDİĞER EKSİK: {', '.join(optional) if optional else 'Tamam'}\n\nGÖREV:\nKullanıcının son mesajına samimi yanıt ver ve SONRAKİ eksik bilgiyi öğren.\n\nKRİTİK KURALLAR:\n- İÇ DEKORASYON, TASARIM, MOBİLYA KONUŞMA!\n- Sadece genel bilgi topla\n- Zaten bilinen şeyleri ASLA tekrar sorma\n- 3-4 cümle\n- Adın yok\n\nBİLİNEN: {known_str}\n\nYanıt:"
 
             response = await self.question_agent.llm_service.generate_response(
-                prompt=prompt,
+                prompt=message_text,
                 system_message=SYSTEM_PROMPT,
                 temperature=0.8,
-                max_tokens=150  # Shorter to avoid rambling
+                max_tokens=150
             )
             
             result = response.strip()
@@ -429,7 +397,7 @@ Yanıt:"""
         except Exception as e:
             self.logger.error(f"Generate error: {e}")
             if not profile.name:
-                return "Merhaba! Ben AI emlak asistanıyım. Seninle tanışmak isterim, adın ne?"
+                return "Merhaba! Ben AI emlak asistanıyım. Adın ne?"
             return f"Devam edelim {profile.name}!"
     
     def _get_history(self, conversation: Conversation, count: int = 8) -> str:

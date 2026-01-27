@@ -6,29 +6,18 @@ from enum import Enum
 class QuestionCategory(str, Enum):
     """Categories of questions asked to users during information gathering."""
 
-    # Introduction Phase (Personal Info)
     NAME = "name"
-    EMAIL = "email"
-    PHONE = "phone"
     HOMETOWN = "hometown"
     PROFESSION = "profession"
     MARITAL_STATUS = "marital_status"
     CHILDREN = "children"
-    SALARY = "salary"
     HOBBIES = "hobbies"
-    PETS = "pets"
-    
-    # Property Search Phase
-    BUDGET = "budget"
-    LOCATION = "location"
-    PROPERTY_TYPE = "property_type"
-    SIZE = "size"
-    ROOMS = "rooms"
-    FEATURES = "features"
-    TIMELINE = "timeline"
-    FAMILY_SIZE = "family_size"
-    LIFESTYLE = "lifestyle"
+    EMAIL = "email"
+    PHONE_NUMBER = "phone_number"
+    ESTIMATED_SALARY = "estimated_salary"
     PRIORITIES = "priorities"
+    LOCATION = "location"
+    ROOMS = "rooms"
 
     def __str__(self) -> str:
         return self.value
