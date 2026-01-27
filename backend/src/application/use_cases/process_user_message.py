@@ -411,6 +411,7 @@ class ProcessUserMessageUseCase:
             # Advisor Context
             pkg = advisor_analysis.get("package_info", {})
             guidance = advisor_analysis.get("guidance_cue", "")
+            is_mature = advisor_analysis.get("is_profile_mature", False)
             
             # Separate essential from optional
             essential = [m for m in missing if 'zorunlu' in m]
@@ -430,9 +431,22 @@ class ProcessUserMessageUseCase:
             # Build known items list
             known_str = self._get_detailed_memory(profile)
             
+            if not is_mature:
+                phase_instruction = """Şu an TANIŞMA aşamasındasın. 
+- ASLA evlerden, fiyatlardan, paketlerden veya yatırımdan bahsetme.
+- Sadece kullanıcıyı tanımaya, hobilerini, alışkanlıklarını veya hayata bakışını anlamaya odaklan.
+- Eğer kullanıcı ev sorduysa, nazikçe 'Sizi daha iyi tanıdıktan sonra en doğru seçeneği bulacağız' diyerek konuyu yaşam tarzına çek."""
+            else:
+                phase_instruction = """Şu an YÖNLENDİRME aşamasındasın.
+- Tavsiye edilen yönlendirmeyi (guidance_cue) doğal bir şekilde cümlene ekle.
+- Kullanıcıyı hissettirmeden doğru segmente (A, B, C) ısındır."""
+
             message_text = f"""BİLGE DANIŞMAN ANALİZİ:
 - Mevcut Profil: {known_str}
 - Tavsiye Edilen Yönlendirme (Cevaba yedirilecek): "{guidance}"
+- Profil Olgunluğu: {"Olgun" if is_mature else "Henüz Tanışma"}
+
+{phase_instruction}
 
 SON SOHBET:
 {history}
@@ -441,16 +455,15 @@ EKSİK BİLGİ ALANLARI: {', '.join(missing) if missing else 'Kritik veriler tam
 
 GÖREV:
 1. Kullanıcının son mesajına BILGECE ve SAMİMİ bir yanıt ver.
-2. Tavsiye edilen yönlendirmeyi (guidance_cue) doğal bir şekilde cümlene ekle.
-3. Eksik bilgilerden birini öğrenmek için DOLAYLI bir soru sor (Doğrudan soru sorma!).
-4. Cevap çok kısa (en fazla 3 cümle) olsun.
+2. Eksik bilgilerden birini öğrenmek için DOLAYLI bir soru sor (Doğrudan soru sorma!).
+3. Cevap çok kısa (en fazla 2-3 cümle) olsun.
 
 Yanıt:"""
 
             response = await self.question_agent.llm_service.generate_response(
                 prompt=message_text,
                 system_message=SYSTEM_PROMPT,
-                temperature=0.8,
+                temperature=0.7,  # Bir tık daha stabil olsun
                 max_tokens=250
             )
             

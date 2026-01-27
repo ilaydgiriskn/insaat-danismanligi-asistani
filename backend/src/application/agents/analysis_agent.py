@@ -24,25 +24,27 @@ class AnalysisAgent(BaseAgent):
             self._log_execution("Performing internal advisor analysis")
             
             # 1. Tier Assessment
+            is_profile_mature = bool(user_profile.name and (user_profile.profession or user_profile.hometown))
             assessment = self._assess_tier(user_profile)
             
             # 2. Strategic Guidance Generation
-            # We use the LLM to refine the 'conversational cue' based on the profile
-            prompt = self._build_guidance_prompt(user_profile, assessment)
+            # If profile isn't mature, focus on lifestyle/introduction, not house segments.
+            prompt = self._build_guidance_prompt(user_profile, assessment, is_mature=is_profile_mature)
             
             response = await self.llm_service.generate_response(
                 prompt=prompt,
-                system_message="Sen kıdemli bir emlak stratejistisin. Kullanıcıya hissettirmeden onu doğru segmente yönlendirecek doğal bir 'danışman tavsiyesi' cümlesi üret.",
+                system_message="Sen kıdemli bir emlak stratejistisin. Kullanıcıyla tanışma aşamasında isen onu tanımaya yönelik, tanışma bitti ise onu doğru segmente yönlendirecek doğal bir cümle üret.",
                 temperature=0.7,
                 max_tokens=200
             )
             
             return {
-                "tier": assessment["tier"],
-                "package_info": assessment["package"],
+                "tier": assessment["tier"] if is_profile_mature else "Discovery",
+                "package_info": assessment["package"] if is_profile_mature else {},
                 "guidance_cue": response.strip(),
                 "motivation": assessment["motivation"],
-                "is_near_upgrade": assessment["is_near_upgrade"]
+                "is_near_upgrade": assessment["is_near_upgrade"] if is_profile_mature else False,
+                "is_profile_mature": is_profile_mature
             }
             
         except Exception as e:
@@ -109,9 +111,27 @@ class AnalysisAgent(BaseAgent):
             "is_near_upgrade": is_near_upgrade
         }
 
-    def _build_guidance_prompt(self, profile: UserProfile, assessment: dict) -> str:
-        """Prompt for generating professional conversational cues matching the user's potential."""
+    def _build_guidance_prompt(self, profile: UserProfile, assessment: dict, is_mature: bool = True) -> str:
+        """Prompt for phase-aware conversational cues."""
         pkg = assessment["package"]
+        
+        if not is_mature:
+            return f"""
+KULLANICI PROFİLİ (Henüz Eksik):
+- Meslek: {profile.profession or 'Belirsiz'}
+- Yaşadığı Şehir: {profile.hometown or 'Belirsiz'}
+- Medeni Durum: {profile.marital_status or 'Belirsiz'}
+
+KONUŞMA AŞAMASI: TANIŞMA VE YAŞAM TARZI (LIFESTYLE DISCOVERY)
+
+GÖREV:
+Bu kullanıcıyla tanışmaya devam edecek, samimi ve bilgece bir 'sohbete giriş' veya 'ilgi gösterme' cümlesi üret.
+- ASLA evlerden, bütçeden, paketlerden veya "bir tık yatırım" gibi satış ifadelerinden bahsetme.
+- Sadece kullanıcının yaşam tarzını, alışkanlıklarını veya hayata bakışını anlamaya odaklan.
+- "Sizin gibi vizyon sahibi biri..." gibi nazik bir ton kullan ama mülk tanıtımı yapma.
+- Yanıt sadece 1 cümle olsun.
+"""
+
         upgrade_text = "Kullanıcı bir üst segmente yakın, onu çok hafifçe ve doğal bir şekilde yukarıya (yatırım değeri veya prestij vurgusuyla) teşvik et." if assessment["is_near_upgrade"] else ""
         
         return f"""
@@ -120,6 +140,8 @@ KULLANICI PROFİLİ:
 - Maaş: {profile.estimated_salary or 'Belirsiz'}
 - Medeni Durum: {profile.marital_status or 'Belirsiz'}
 - Hobiler: {', '.join(profile.hobbies) if profile.hobbies else 'Belirsiz'}
+
+KONUŞMA AŞAMASI: SEGMENT YÖNLENDİRME (STRATEGIC GUIDANCE)
 
 ANALİZİMİZ:
 - SEGMENT: {assessment['tier']} Paketi ({pkg['range']})
@@ -130,8 +152,8 @@ ANALİZİMİZ:
 GÖREV:
 Bu kullanıcıyı hissettirmeden {assessment['tier']} segmentindeki bir yaşama veya {assessment['tier']}'den bir üst segmente geçmenin avantajlarına yönlendirecek BİLGECE bir tavsiye cümlesi üret.
 - Cümle doğal bir sohbetin parçası gibi olmalı.
-- "A segmenti size uygun" gibi teknik ifadelerden kaçın.
-- "Sizin gibi vizyon sahibi kişiler genelde..." veya "Aslında şu yöne bir tık daha pay ayırmak seçenekleri ciddi genişletiyor..." gibi kalıplar kullan.
+- "A segmenti size uygun" gibi teknik ifadelerden veya "bir tık yatırım" gibi itici kalıplardan KAÇIN.
+- "Aslında şu yöne bir tık daha pay ayırmak seçenekleri ciddi genişletiyor..." gibi (eğer upgrade yakınsa) veya "Sizin gibi aile odaklı bir hayat isteyenler genelde bu tarz..." gibi cümleler kur.
 - Yanıt sadece 1 cümle olsun.
 """
 
