@@ -1,6 +1,7 @@
 """Question agent for selecting next question to ask user."""
 
 from typing import Optional
+import random
 
 from application.agents.base_agent import BaseAgent
 from domain.entities import UserProfile, Conversation
@@ -29,7 +30,7 @@ class QuestionAgent(BaseAgent):
                     "message": "All categories answered"
                 }
             
-            # ALWAYS use deterministic fallback - no LLM for question selection
+            # Use deterministic fallback
             return self._fallback_question_selection(user_profile, unanswered)
             
         except Exception as e:
@@ -44,8 +45,7 @@ class QuestionAgent(BaseAgent):
     ) -> dict:
         """Deterministic question selection - no LLM, predictable order."""
         
-        # SKIP NAME - it's captured directly from first message
-        # Order: email -> hometown -> profession -> budget -> location -> property
+        # Priority order (NAME is captured from first message)
         priority = [
             QuestionCategory.EMAIL,
             QuestionCategory.HOMETOWN,
@@ -65,18 +65,16 @@ class QuestionAgent(BaseAgent):
         
         for category in priority:
             if category in unanswered:
-                question = self._get_personalized_question(user_profile, category)
+                question = self._get_natural_question(user_profile, category)
                 return {
                     "question": question,
                     "category": category.value,
                     "reasoning": "Priority-based selection"
                 }
         
-        # If NAME is still unanswered (shouldn't happen with new logic)
         if QuestionCategory.NAME in unanswered:
-            question = self._get_personalized_question(user_profile, QuestionCategory.NAME)
             return {
-                "question": question,
+                "question": "İsminizi öğrenebilir miyim?",
                 "category": QuestionCategory.NAME.value,
                 "reasoning": "Fallback to name"
             }
@@ -87,84 +85,97 @@ class QuestionAgent(BaseAgent):
             "message": "All priority categories answered"
         }
     
-    def _get_personalized_question(self, user_profile: UserProfile, category: QuestionCategory) -> str:
-        """Get personalized question based on user's name."""
+    def _get_natural_question(self, user_profile: UserProfile, category: QuestionCategory) -> str:
+        """Get natural, varied questions based on category and context."""
         name = user_profile.name or ""
         
-        # Create friendly greeting with name
-        if name:
-            greeting = f"Teşekkürler {name}! "
-        else:
-            greeting = ""
+        # Varied connectors for natural flow
+        connectors = ["Peki", "Şimdi", "Harika", "Anladım", "Güzel"]
+        connector = random.choice(connectors)
         
         questions = {
             QuestionCategory.NAME: "İsminizi öğrenebilir miyim?",
-            QuestionCategory.EMAIL: f"{greeting}Size ulaşabilmem için e-posta adresinizi alabilir miyim?",
-            QuestionCategory.PHONE: f"{greeting}Telefon numaranızı da paylaşmak ister misiniz?",
-            QuestionCategory.HOMETOWN: f"{greeting}Hangi şehirde doğup büyüdünüz?",
-            QuestionCategory.PROFESSION: f"{greeting}Ne iş yapıyorsunuz?",
-            QuestionCategory.MARITAL_STATUS: f"{greeting}Medeni durumunuz nedir?",
-            QuestionCategory.CHILDREN: f"{greeting}Çocuğunuz var mı?",
-            QuestionCategory.SALARY: f"{greeting}Aylık geliriniz ne kadar? (Tahmini olarak söyleyebilirsiniz)",
-            QuestionCategory.HOBBIES: f"{greeting}Boş zamanlarınızda neler yapmayı seversiniz?",
-            QuestionCategory.PETS: f"{greeting}Evcil hayvanınız var mı?",
-            QuestionCategory.BUDGET: f"{greeting}Ev almak için bütçeniz ne kadar?",
-            QuestionCategory.LOCATION: f"{greeting}Hangi şehir veya bölgede ev aramak istiyorsunuz?",
-            QuestionCategory.PROPERTY_TYPE: f"{greeting}Ne tür bir konut arıyorsunuz? (Daire, villa, müstakil ev gibi)",
-            QuestionCategory.ROOMS: f"{greeting}Kaç odalı bir ev tercih edersiniz?",
-            QuestionCategory.FAMILY_SIZE: f"{greeting}Kaç kişilik bir aile için ev arıyorsunuz?",
+            
+            QuestionCategory.EMAIL: [
+                f"Memnun oldum {name}! E-posta adresinizi alabilir miyim?",
+                f"Güzel tanıştığımıza {name}! Mail adresiniz nedir?",
+            ],
+            
+            QuestionCategory.PHONE: [
+                f"{connector}, telefon numaranızı da paylaşır mısınız?",
+                "Telefon numaranızı da alabilir miyim?",
+            ],
+            
+            QuestionCategory.HOMETOWN: [
+                f"{connector} {name}, nereli olduğunuzu sorabilir miyim?",
+                f"Memleket neresi {name}?",
+                "Hangi şehirde doğdunuz?",
+            ],
+            
+            QuestionCategory.PROFESSION: [
+                f"{connector}, ne iş yapıyorsunuz {name}?",
+                "Mesleğiniz nedir?",
+                f"Hangi sektörde çalışıyorsunuz {name}?",
+            ],
+            
+            QuestionCategory.MARITAL_STATUS: [
+                "Medeni durumunuz nedir?",
+                "Evli misiniz, bekar mı?",
+            ],
+            
+            QuestionCategory.CHILDREN: [
+                "Çocuğunuz var mı?",
+                "Çocuk sahibi misiniz?",
+            ],
+            
+            QuestionCategory.SALARY: [
+                f"{connector}, aylık geliriniz ne kadar? Tahmini söyleyebilirsiniz.",
+                "Gelir durumunuz hakkında bilgi verir misiniz?",
+            ],
+            
+            QuestionCategory.HOBBIES: [
+                f"Boş zamanlarınızda neler yapmayı seviyorsunuz {name}?",
+                "Hobileriniz neler?",
+            ],
+            
+            QuestionCategory.PETS: [
+                "Evcil hayvanınız var mı? Kedi, köpek gibi?",
+                "Hayvan beslemeyi sever misiniz?",
+            ],
+            
+            QuestionCategory.BUDGET: [
+                f"Şimdi ev aramaya geçelim {name}! Bütçeniz ne kadar?",
+                f"Ev için ayırabileceğiniz bütçe nedir {name}?",
+                "Minimum ve maksimum ne kadar harcamak istersiniz?",
+            ],
+            
+            QuestionCategory.LOCATION: [
+                f"Hangi şehirde ev arıyorsunuz {name}?",
+                "Tercih ettiğiniz konum veya semt var mı?",
+                "Nerede oturmak istiyorsunuz?",
+            ],
+            
+            QuestionCategory.PROPERTY_TYPE: [
+                "Ne tür bir ev arıyorsunuz? Daire, villa, müstakil ev?",
+                f"Daire mi, müstakil ev mi tercih edersiniz {name}?",
+            ],
+            
+            QuestionCategory.ROOMS: [
+                "Kaç odalı bir ev düşünüyorsunuz?",
+                "Oda sayısı olarak ne tercih edersiniz? 2+1, 3+1 gibi?",
+            ],
+            
+            QuestionCategory.FAMILY_SIZE: [
+                f"Kaç kişi yaşayacaksınız bu evde {name}?",
+                "Aile büyüklüğünüz nedir?",
+            ],
         }
         
-        return questions.get(
-            category,
-            f"{greeting}{category.value} hakkında bilgi verebilir misiniz?"
-        )
-    
-    def _build_profile_summary(self, user_profile: UserProfile) -> str:
-        """Build a summary of user's current profile."""
-        parts = []
+        question_options = questions.get(category)
         
-        if user_profile.name:
-            parts.append(f"Name: {user_profile.name}")
-        
-        if user_profile.email:
-            parts.append(f"Email: {user_profile.email}")
-        
-        if user_profile.phone:
-            parts.append(f"Phone: {user_profile.phone}")
-        
-        if user_profile.hometown:
-            parts.append(f"Hometown: {user_profile.hometown}")
-        
-        if user_profile.profession:
-            parts.append(f"Profession: {user_profile.profession}")
-        
-        if user_profile.budget:
-            parts.append(f"Budget: {user_profile.budget}")
-        
-        if user_profile.location:
-            parts.append(f"Location: {user_profile.location}")
-        
-        if user_profile.property_preferences:
-            parts.append(f"Property: {user_profile.property_preferences}")
-        
-        if user_profile.family_size:
-            parts.append(f"Family size: {user_profile.family_size}")
-        
-        answered = [cat.value for cat in user_profile.answered_categories]
-        parts.append(f"Answered categories: {', '.join(answered)}")
-        
-        return "\n".join(parts) if parts else "No information yet"
-    
-    def _build_conversation_history(self, conversation: Conversation) -> str:
-        """Build conversation history summary."""
-        recent_messages = conversation.get_recent_messages(5)
-        
-        if not recent_messages:
-            return "No conversation history"
-        
-        history = []
-        for msg in recent_messages:
-            history.append(f"{msg.role.value}: {msg.content}")
-        
-        return "\n".join(history)
+        if isinstance(question_options, list):
+            return random.choice(question_options)
+        elif question_options:
+            return question_options
+        else:
+            return f"{category.value} hakkında bilgi verir misiniz?"
