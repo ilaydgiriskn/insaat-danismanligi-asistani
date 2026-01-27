@@ -1,7 +1,8 @@
 """Analysis agent for strategic property guidance and tier assessment."""
 
 import re
-from typing import Optional
+import json
+from typing import Optional, List
 from application.agents.base_agent import BaseAgent
 from domain.entities import UserProfile
 
@@ -15,50 +16,126 @@ class AnalysisAgent(BaseAgent):
     - B Paketi: 9 – 11 milyon TL
     - C Paketi: 11 – 15 milyon TL
     """
-    
-    async def execute(self, user_profile: UserProfile) -> dict:
+
+    AGENT2_SYSTEM_PROMPT = """Sen bir AI Emlak Analiz Uzmanısın.
+Görevin, kullanıcıyla daha önce yapılan sohbetten elde edilen bilgileri analiz etmek ve bu bilgilere dayanarak bütçe segmentasyonu ve ev önerisi çıkarımı yapmaktır.
+
+⚠️ ÖNEMLİ KURALLAR:
+- Kullanıcıyla doğrudan sohbet etmezsin
+- Soru sormazsın
+- Kendini tanıtmazsın
+- Agent1’in işine karışmazsın
+- Sadece analiz üretirsin
+- Eksik veri varsa tahmin etmezsin, bunu belirtirsin
+
+GÖREVLERİN:
+1. Kullanıcının verdiği bilgilere dayanarak: gelir seviyesi, yaşam tarzı, aile durumu, harcama kapasitesi hakkında yorumlayıcı ama varsayımsız bir analiz yap.
+2. Kullanıcının bütçesini A / B / C segmentlerinden hangisine daha yakın olduğunu değerlendir (A: 7-9M, B: 9-11M, C: 11-15M).
+3. Eğer bütçesi A segmentine uygunsa -> A segmenti evler önerilebilir. Bütçesi A’ya yakın ama B için yetersizse -> “B segmenti için yaklaşık X TL ek bütçe gerekir” şeklinde çıkarım üret.
+4. Kullanıcının: hobileri, çocuk durumu, çalışma şekli ile ev segmentleri arasında mantıksal bağlar kur (örnek: çocuk -> oda ihtiyacı, spor -> site olanakları).
+
+Yanıtını KESİNLİKLE JSON formatında üret:
+{
+  "user_analysis": {
+    "estimated_budget_segment": "A | B | C",
+    "confidence_level": "low | medium | high",
+    "key_factors": ["gelir_araligi", "meslek", "medeni_durum", "hobiler"]
+  },
+  "budget_evaluation": {
+    "current_segment": "A",
+    "upper_segment_possible": "B",
+    "additional_budget_needed": 1500000
+  },
+  "lifestyle_insights": [
+    "Çocuklu aile için ekstra oda ihtiyacı",
+    "Sporla ilgilenmesi nedeniyle site içi olanaklar avantaj sağlar"
+  ],
+  "notes": [
+    "Bu analiz mevcut sohbet verilerine dayanır",
+    "Eksik veriler kesin çıkarım yapılmasını sınırlar"
+  ]
+}"""
+
+    async def execute(self, user_profile: UserProfile, chat_history: Optional[List[dict]] = None) -> dict:
         """
         Produce internal analysis and guidance strategies.
         """
         try:
             self._log_execution("Performing internal advisor analysis")
             
-            # 1. Tier Assessment
+            # 1. Structured Analysis (Agent 2 Core)
+            structured_result = None
+            if chat_history:
+                structured_result = await self.execute_structured_analysis(user_profile, chat_history)
+
+            # 2. Tier Assessment
             # Profile is mature only if we have: Name, Profession/Hometown, Marital Status AND Hobbies
             is_profile_mature = user_profile.is_complete()
-            assessment = self._assess_tier(user_profile)
             
-            # 2. Strategic Guidance Generation
+            if structured_result and "user_analysis" in structured_result:
+                try:
+                    # Defensive access to the deep JSON structure
+                    segment = structured_result.get("user_analysis", {}).get("estimated_budget_segment", "A")
+                    evaluation = structured_result.get("budget_evaluation", {})
+                    insights = structured_result.get("lifestyle_insights", [])
+                    
+                    assessment = {
+                        "tier": segment,
+                        "package": self._get_package_by_tier(segment),
+                        "motivation": insights[0] if insights else "Kişisel yaşam analizi",
+                        "is_near_upgrade": evaluation.get("additional_budget_needed", 0) > 0,
+                        "structured_data": structured_result
+                    }
+                except Exception as ex:
+                    self._log_error(f"Structured assessment mapping failed: {ex}")
+                    assessment = self._assess_tier(user_profile)
+            else:
+                assessment = self._assess_tier(user_profile)
+            
+            # 3. Strategic Guidance Generation
             # If profile isn't mature, focus on lifestyle/introduction, not house segments.
             prompt = self._build_guidance_prompt(user_profile, assessment, is_mature=is_profile_mature)
             
             response = await self.llm_service.generate_response(
                 prompt=prompt,
-                system_message="Sen kıdemli bir emlak stratejistisin. İnsan psikolojisinden iyi anlıyorsun. Tanışma aşamasında isen sadece kullanıcıyı tanımaya yönelik, tanışma bitti ise onu doğru segmente (A, B, C) çekmeye yönelik samimi bir cümle üret.",
+                system_message="Sen kıdemli bir emlak stratejistisin. İnsan psikolojisinden iyi anlıyorsun. Tanışma bitti ise kullanıcıyı doğru segmente (A, B, C) çekmeye yönelik samimi bir cümle üret.",
                 temperature=0.7,
                 max_tokens=200
             )
             
             return {
-                "tier": assessment["tier"] if is_profile_mature else "Discovery",
-                "package_info": assessment["package"] if is_profile_mature else {},
+                "tier": assessment.get("tier", "A") if is_profile_mature else "Discovery",
+                "package_info": assessment.get("package", {}) if is_profile_mature else {},
                 "guidance_cue": response.strip(),
-                "motivation": assessment["motivation"],
-                "is_near_upgrade": assessment["is_near_upgrade"] if is_profile_mature else False,
-                "is_profile_mature": is_profile_mature
+                "motivation": assessment.get("motivation", ""),
+                "is_near_upgrade": assessment.get("is_near_upgrade", False) if is_profile_mature else False,
+                "is_profile_mature": is_profile_mature,
+                "structured_analysis": structured_result
             }
             
         except Exception as e:
             self._log_error(e)
             return self._fallback_guidance(user_profile)
             
-    async def generate_full_analysis(self, user_profile: UserProfile) -> str:
+    async def generate_full_analysis(self, user_profile: UserProfile, structured_analysis: Optional[dict] = None) -> str:
         """
         Final phase: Generate a comprehensive, personalized property recommendation.
         """
         try:
-            assessment = self._assess_tier(user_profile)
+            # If no structured analysis provided, try to generate one (though it should be passed in)
+            if not structured_analysis:
+                # We need history here too for a fresh analysis if not passed
+                # For safety, we use the internal assessment as fallback
+                assessment = self._assess_tier(user_profile)
+            else:
+                assessment = {
+                    "tier": structured_analysis["user_analysis"]["estimated_budget_segment"],
+                    "package": self._get_package_by_tier(structured_analysis["user_analysis"]["estimated_budget_segment"]),
+                    "lifestyle_insights": structured_analysis["lifestyle_insights"]
+                }
+            
             pkg = assessment["package"]
+            lifestyle_context = "\n".join([f"- {i}" for i in assessment.get("lifestyle_insights", [])])
             
             prompt = f"""
 KULLANICI PROFİLİ:
@@ -69,15 +146,18 @@ KULLANICI PROFİLİ:
 - Hobiler: {', '.join(user_profile.hobbies)}
 - Bütçe: {user_profile.budget.max_amount if user_profile.budget else 'Belirsiz'} TL
 
+DERİN ANALİZ ÇIKTILARI (AGENT 2):
+{lifestyle_context}
+
 SEÇİLEN SEGMENT: {assessment['tier']} Paketi ({pkg['range']})
 SEGMENT ODAĞI: {pkg['focus']}
 
 GÖREV:
 Bu kullanıcıya özel, samimi, bilgece ve heyecan verici bir "Final Önerisi" hazırla.
 - Kullanıcıya ismen hitap et.
-- Neden bu segmentin (A, B veya C) ona çok uygun olduğunu, hobilerine ve yaşam tarzına atıfta bulunarak açıkla.
-- "X paketi size uygun" gibi soğuk terimler yerine, "Sizin için seçtiğim bu yaşam konsepti..." gibi sahiplenici bir dil kullan.
-- Evin artılarını (bahçe, oda sayısı, konum) onun hayalleriyle birleştir.
+- Neden bu segmentin (A, B veya C) ona çok uygun olduğunu, hobilerine ve yaşam tarzına (yukarıdaki analiz çıktılarına) atıfta bulunarak açıkla.
+- "X paketi size uygun" gibi teknik terimler yerine, "Sizin için seçtiğim bu yaşam konsepti..." gibi sahiplenici bir dil kullan.
+- Konutun sunduğu olanakları (spor, oda sayısı, sessizlik vb.) onun günlük rutinleriyle birleştir.
 - Tonun bilgece, güven verici ve vizyoner olsun.
 - Yanıt 4-5 cümlelik zengin bir metin olsun.
 """
@@ -95,6 +175,77 @@ Bu kullanıcıya özel, samimi, bilgece ve heyecan verici bir "Final Önerisi" h
             self._log_error(e)
             return f"Sayın {user_profile.name}, yaşam tarzınıza en uygun seçenekleri titizlikle hazırlıyoruz."
             
+    async def execute_structured_analysis(self, profile: UserProfile, chat_history: List[dict]) -> Optional[dict]:
+        """
+        Produce a deep, structured JSON analysis of the user potential.
+        """
+        try:
+            # Format inputs for Agent 2
+            history_str = "\n".join([f"{m.get('role', 'user')}: {m.get('content', '')}" for m in chat_history])
+            
+            input_data = f"""
+CHAT GEÇMİŞİ:
+{history_str}
+
+KULLANICI PROFİLİ:
+- İsim: {profile.name or 'Bilinmiyor'}
+- Meslek: {profile.profession or 'Bilinmiyor'}
+- Şehir: {profile.hometown or 'Bilinmiyor'}
+- Medeni Durum: {profile.marital_status or 'Bilinmiyor'}
+- Hobiler: {', '.join(profile.hobbies) if profile.hobbies else 'Bilinmiyor'}
+- Gelir (Tahmini): {profile.estimated_salary or 'Bilinmiyor'}
+- Bütçe: {profile.budget.max_amount if profile.budget else 'Bilinmiyor'}
+"""
+
+            response = await self.llm_service.generate_response(
+                prompt=input_data,
+                system_message=self.AGENT2_SYSTEM_PROMPT,
+                temperature=0.3, # Low temperature for structured output
+                max_tokens=1000
+            )
+
+            # Cleanup potential markdown artifacts
+            clean_json = response.strip()
+            if "```json" in clean_json:
+                clean_json = clean_json.split("```json")[1].split("```")[0].strip()
+            elif "```" in clean_json:
+                clean_json = clean_json.split("```")[1].split("```")[0].strip()
+                
+            return json.loads(clean_json)
+        except Exception as e:
+            self._log_error(f"Structured analysis failed: {str(e)}")
+            return None
+
+    def _get_package_by_tier(self, tier_code: str) -> dict:
+        """Helper to get package info from tier letter."""
+        tier_code = tier_code.strip().upper()
+        if "A" in tier_code: return self._get_packages()["A"]
+        if "B" in tier_code: return self._get_packages()["B"]
+        if "C" in tier_code: return self._get_packages()["C"]
+        return self._get_packages()["A"]
+
+    def _get_packages(self) -> dict:
+        return {
+            "A": {
+                "range": "7 - 9 Milyon TL",
+                "focus": "Yaşam odaklı, aile dostu, bütçe korumalı",
+                "pros": "Düşük aidat, merkezi ulaşım",
+                "cons": "Sosyal tesisler sınırlı olabilir"
+            },
+            "B": {
+                "range": "9 - 11 Milyon TL",
+                "focus": "Geniş metrekare, sosyal donatı, modern mimari",
+                "pros": "Havuz, kapalı otopark, fitness",
+                "cons": "Aidat maliyeti biraz daha yüksek"
+            },
+            "C": {
+                "range": "11 - 15 Milyon TL",
+                "focus": "Lüks, özel tasarım, akıllı ev, yatırım değeri",
+                "pros": "Geniş bahçe/teras, özel güvenlik, yüksek prim potansiyeli",
+                "cons": "Yüksek giriş maliyeti"
+            }
+        }
+
     def _assess_tier(self, profile: UserProfile) -> dict:
         """Internal heuristic for tier assignment with risk appetite and motivation."""
         budget_val = 0
@@ -143,26 +294,7 @@ Bu kullanıcıya özel, samimi, bilgece ve heyecan verici bir "Final Önerisi" h
                 if salary_val >= 60000:
                     is_near_upgrade = True
 
-        packages = {
-            "A": {
-                "range": "7 - 9 Milyon TL",
-                "focus": "Yaşam odaklı, aile dostu, bütçe korumalı",
-                "pros": "Düşük aidat, merkezi ulaşım",
-                "cons": "Sosyal tesisler sınırlı olabilir"
-            },
-            "B": {
-                "range": "9 - 11 Milyon TL",
-                "focus": "Geniş metrekare, sosyal donatı, modern mimari",
-                "pros": "Havuz, kapalı otopark, fitness",
-                "cons": "Aidat maliyeti biraz daha yüksek"
-            },
-            "C": {
-                "range": "11 - 15 Milyon TL",
-                "focus": "Lüks, özel tasarım, akıllı ev, yatırım değeri",
-                "pros": "Geniş bahçe/teras, özel güvenlik, yüksek prim potansiyeli",
-                "cons": "Yüksek giriş maliyeti"
-            }
-        }
+        packages = self._get_packages()
         
         return {
             "tier": tier,
@@ -222,7 +354,8 @@ Bu kullanıcıyı hissettirmeden {assessment['tier']} segmentindeki bir yaşama 
         return {
             "tier": "A",
             "package_info": {"range": "7-9M TL", "focus": "Essential living"},
-            "guidance_cue": "Sizin gibi aile odaklı kişiler genelde konfor ve güvenliği ön planda tutan projelerimizi çok seviyor.",
+            "guidance_cue": "Yaşam tarzınızdaki bu detaylar, aslında sizin için en huzurlu alanın ipuçlarını veriyor.",
             "motivation": "Temel analiz",
-            "is_near_upgrade": False
+            "is_near_upgrade": False,
+            "is_profile_mature": False
         }

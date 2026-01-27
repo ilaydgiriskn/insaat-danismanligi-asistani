@@ -94,80 +94,76 @@ class QuestionAgent(BaseAgent):
         connector = random.choice(connectors)
         
         questions = {
-            QuestionCategory.NAME: "İsminizi öğrenebilir miyim?",
+            QuestionCategory.NAME: "Sizi hangi isimle tanıyabilirim?",
             
             QuestionCategory.EMAIL: [
-                f"Memnun oldum {name}! E-posta adresinizi alabilir miyim?",
-                f"Güzel tanıştığımıza {name}! Mail adresiniz nedir?",
+                f"Sizinle vizyoner paylaşımlar yapabileceğimiz bir mektup kutunuz (E-posta) var mı {name}?",
+                f"Güzel tanıştığımıza {name}! Size özel notlar iletebileceğim bir adresiniz var mı?",
             ],
             
             QuestionCategory.PHONE: [
-                f"{connector}, telefon numaranızı da paylaşır mısınız?",
-                "Telefon numaranızı da alabilir miyim?",
+                f"{connector}, sizinle sesli veya anlık iletişim kurabileceğimiz bir numaranız var mı?",
+                "Size ulaşabileceğim en doğru irtibat numarası nedir?",
             ],
             
             QuestionCategory.HOMETOWN: [
-                f"{connector} {name}, nereli olduğunuzu sorabilir miyim?",
-                f"Memleket neresi {name}?",
-                "Hangi şehirde doğdunuz?",
+                f"{connector} {name}, kökleriniz hangi şehrin topraklarında, merak ettim?",
+                f"Hangi rüzgarın estiği diyarlardan geliyorsunuz {name}?",
             ],
             
             QuestionCategory.PROFESSION: [
-                f"{connector}, ne iş yapıyorsunuz {name}?",
-                "Mesleğiniz nedir?",
-                f"Hangi sektörde çalışıyorsunuz {name}?",
+                f"{connector}, zamanınızı hangi değerleri üreterek geçiriyorsunuz {name}?",
+                "Hangi uzmanlık alanı sizin tutkunuz oldu?",
             ],
             
             QuestionCategory.MARITAL_STATUS: [
-                "Medeni durumunuz nedir?",
-                "Evli misiniz, bekar mı?",
+                "Hayatın bu yolculuğuna tek başınıza mı yoksa değerli bir yol arkadaşıyla mı devam ediyorsunuz?",
+                "Yaşam alanınızı kiminle paylaşma hayali kuruyorsunuz?",
             ],
             
             QuestionCategory.CHILDREN: [
-                "Çocuğunuz var mı?",
-                "Çocuk sahibi misiniz?",
+                "Küçük kahkahaların yükseldiği bir yuva mı hayaliniz, yoksa daha dingin bir hayat mı?",
+                "Ailenizde sizi geleceğe bağlayan minik üyeler var mı?",
             ],
             
             QuestionCategory.SALARY: [
-                f"{connector}, aylık geliriniz ne kadar? Tahmini söyleyebilirsiniz.",
-                "Gelir durumunuz hakkında bilgi verir misiniz?",
+                f"{connector}, yaşam standartlarınız için ayırdığınız tahmini pay ne kadardır?",
+                "Konforlu bir gelecek için aylık harcama vizyonunuzu nasıl tanımlarsınız?",
             ],
             
             QuestionCategory.HOBBIES: [
-                f"Boş zamanlarınızda neler yapmayı seviyorsunuz {name}?",
-                "Hobileriniz neler?",
+                f"Ruhunuzu en çok hangi uğraşlar dinlendiriyor {name}?",
+                "Hangi tutkular sizi hayata daha sıkı bağlar?",
             ],
             
             QuestionCategory.PETS: [
-                "Evcil hayvanınız var mı? Kedi, köpek gibi?",
-                "Hayvan beslemeyi sever misiniz?",
+                "Sadık bir dostla (evcil hayvan) paylaşılan bir hayatın huzuru sizin için ne ifade eder?",
+                "Evinizde patili bir dostun enerjisi olsun ister miydiniz?",
             ],
             
             QuestionCategory.BUDGET: [
-                f"Şimdi ev aramaya geçelim {name}! Bütçeniz ne kadar?",
-                f"Ev için ayırabileceğiniz bütçe nedir {name}?",
-                "Minimum ve maksimum ne kadar harcamak istersiniz?",
+                f"Hayallerinizi somutlaştırmak için ayırdığınız o kıymetli maddi kaynak yaklaşık ne kadardır {name}?",
+                f"Konforunuzun finansal sınırlarını nasıl çizersiniz {name}?",
             ],
             
             QuestionCategory.LOCATION: [
-                f"Hangi şehirde ev arıyorsunuz {name}?",
-                "Tercih ettiğiniz konum veya semt var mı?",
-                "Nerede oturmak istiyorsunuz?",
+                f"Gözlerinizi her sabah hangi şehrin ışığına açmak istersiniz {name}?",
+                "Tercih ettiğiniz iklim veya sahil kasabası hayaliniz var mı?",
             ],
             
             QuestionCategory.PROPERTY_TYPE: [
-                "Ne tür bir ev arıyorsunuz? Daire, villa, müstakil ev?",
-                f"Daire mi, müstakil ev mi tercih edersiniz {name}?",
+                "Gökyüzüne yakın bir rezidans mı, yoksa toprağa dokunan bir bahçeli yaşam mı size hitap ediyor?",
+                f"Sizin ruhunuza hangi mimari doku iyi geliyor {name}?",
             ],
             
             QuestionCategory.ROOMS: [
-                "Kaç odalı bir ev düşünüyorsunuz?",
-                "Oda sayısı olarak ne tercih edersiniz? 2+1, 3+1 gibi?",
+                "Sessizliği dinleyebileceğiniz veya sevdiklerinizi ağırlayabileceğiniz genişliği nasıl hayal edersiniz?",
+                "Yaşam alanınızın ferahlığı kaç odada hayat bulmalı?",
             ],
             
             QuestionCategory.FAMILY_SIZE: [
-                f"Kaç kişi yaşayacaksınız bu evde {name}?",
-                "Aile büyüklüğünüz nedir?",
+                f"Bu vizyonu kaç kişilik bir toplulukla paylaşmayı düşünüyorsunuz {name}?",
+                "Ferahlığın tanımı sizin kalabalığınız için nedir?",
             ],
         }
         

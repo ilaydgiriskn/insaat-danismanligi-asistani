@@ -16,23 +16,23 @@ from infrastructure.llm import InformationExtractor
 
 GREETINGS = {'merhaba', 'selam', 'selamlar', 'mrb', 'slm', 'hey', 'hi', 'sa', 'merhabalar', 'naber'}
 
-SYSTEM_PROMPT = """Sen bilge, samimi ve NET bir AI emlak danışmanısın. Gereksiz laf kalabalığından kaçınan, her cümlesiyle bir amaca hizmet eden profesyonel bir vizyonun var.
+SYSTEM_PROMPT = """Sen bilge, samimi ve derinlikli bir AI emlak danışmanısın. Gereksiz laf kalabalığından kaçınan ama her cümlesiyle bir vizyon sunan profesyonel bir dostsun.
 
 PERSONAN:
-- Adın yok, bir "AI Danışman"sın. Robofik değilsin ama "geveze" de değilsin.
-- Bilge bir dost gibi kısa, öz ve derinlikli konuşursun.
+- Adın yok, bir "AI Danışman"sın. Bilge bir rehber gibi empati kuran ve öngörüsü yüksek bir dil kullanırsın.
 
 STRATEJİN:
-1. **BİLGE KISALIK KURALI**: Kullanıcının verdiği bilgiyi (Örn: Spor) yarım cümlede onayla ve hemen emlak karşılığını (Örn: Parka yakınlık) söyleyip YENİ bir soruya geç. Asla lafı uzatma.
-2. **RELEVANCE HARDENING (ALAKA FİLTRESİ)**: Hobilerin emlakla ilgisi olmayan detaylarına (Hangi kitap, kitabı nereden alırsın, hangi gitar markası vb.) girmek KESİNLİKLE YASAKTIR. Sadece fiziksel alan ihtiyacına (Sessizlik, oda sayısı, balkon vb.) odaklan.
-3. **DOĞAL AKIŞ**: Cevabın samimi olsun ama form doldurur gibi hissettirmesin. Gereksiz övgü ve onay cümlelerini (Harika, çok güzel vb.) minimuma indir.
+1. **BİLGE EMPATİ VE YORUMLAMA**: Kullanıcının verdiği bilgiyi (Örn: Spor) kuru bir bilgi gibi değil, yaşamın bir parçası olarak onayla ve emlak/konum bağlamına vizyoner bir şekilde oturt. (Örn: "Spor yapmak bedene olduğu kadar ruha da iyi gelir; her sabah pencerenizi açtığınızda ciğerlerinize dolacak o taze hava, aktif yaşamınızın en büyük ödülü olacaktır.")
+2. **KATEGORİ GEÇİŞ ZORUNLULUĞU**: Bir bilgi öğrenildiğinde, onu derin bir cümleyle onayla/yorumla ve hemen ardından bir sonraki eksik profil kategorisine (Aile, Medeni Durum vb.) ait TEK bir soru sor.
+3. **SIFIR NİYET İFADESİ**: Soruyu neden sorduğunu asla açıklama. "Ev için önemli" gibi niyet belirten ifadeler KESİNLİKLE YASAKTIR.
+4. **AGENT 1 GİZLİ**: Sohbetin başlarında (Agent 1) "ev", "konut", "emlak", "bütçe" gibi kelimeleri kullanma. Sadece yaşam vizyonu üzerinden konuş.
 
 SOHBET TARZI:
-- Akıcı, bilge ve son derece odaklanmış.
-- Maksimum 2-3 cümle. Her cümle bir bilgi vermeli veya bir bilgi almalı.
-- Boş sohbet (Peki ya siz?, Nasılsınız? vb.) yasaktır.
+- Akıcı, bilge, vizyoner ve samimi.
+- Yanıtlar 3-4 cümleden oluşmalı; ne çok kısa ne çok uzun, tam kıvamında ve etkileyici olmalı.
+- İsim tekrarı yapma. Robotik onaylardan kaçın.
 
-Türkçe, samimi, bilge ve NET."""
+Türkçe, samimi, bilge ve VİZYONER."""
 
 
 class ProcessUserMessageUseCase:
@@ -79,7 +79,18 @@ class ProcessUserMessageUseCase:
             self._extract_all_info(profile, user_message)
             
             # 2. Perform strategic analysis (internal)
-            advisor_analysis = await self.analysis_agent.execute(profile)
+            # Pass full history for deep Agent 2 analysis (defensive conversion)
+            history_messages = conversation.get_recent_messages(20)
+            history_dicts = []
+            for m in history_messages:
+                if hasattr(m, 'to_dict'):
+                    history_dicts.append(m.to_dict())
+                else:
+                    history_dicts.append({"role": getattr(m, 'role', 'user'), "content": getattr(m, 'content', str(m))})
+            
+            advisor_analysis = await self.analysis_agent.execute(profile, chat_history=history_dicts)
+            
+            self.logger.info(f"Advisor Analysis result: {json.dumps(advisor_analysis.get('structured_analysis'), ensure_ascii=False) if advisor_analysis.get('structured_analysis') else 'Heuristic/Fallback'}")
             
             await self.user_repo.update(profile)
             await self.conversation_repo.update(conversation)
@@ -95,7 +106,10 @@ class ProcessUserMessageUseCase:
             if is_ready:
                 # PHASE 2: Full Recommendation (Agent 2)
                 self.logger.info(f"Transitioning to Agent 2 (Full Analysis) for user {profile.name}")
-                response = await self.analysis_agent.generate_full_analysis(profile)
+                response = await self.analysis_agent.generate_full_analysis(
+                    profile, 
+                    structured_analysis=advisor_analysis.get("structured_analysis")
+                )
             else:
                 # PHASE 1: Information Gathering / Discovery (Agent 1)
                 response = await self._generate_response(profile, conversation, missing, advisor_analysis)
@@ -147,10 +161,14 @@ class ProcessUserMessageUseCase:
                 except:
                     pass
             
+            if extracted_info.get("hometown"): 
+                profile.hometown = extracted_info["hometown"]
+                profile.answered_categories.add(QuestionCategory.HOMETOWN)
+            
             if extracted_info.get("location"):
                 from domain.value_objects import Location
                 profile.location = Location(city=extracted_info["location"], country="Turkey")
-                
+                profile.answered_categories.add(QuestionCategory.LOCATION)
             if extracted_info.get("rooms"):
                 from domain.value_objects import PropertyPreferences
                 from domain.enums import PropertyType
@@ -465,10 +483,10 @@ SON SOHBET:
 EKSİK BİLGİ ALANLARI: {', '.join(missing) if missing else 'Kritik veriler tam.'}
 
 GÖREV:
-1. Kullanıcının son mesajına BILGECE ve NET bir yanıt ver.
-2. Hobiyi/Mesleği sadece gayrimenkul ihtiyacı bazında yorumla (Balkon, oda, sessizlik).
-3. Detaylara (Kitap türü, satın alma alışkanlığı vb.) ASLA girme.
-4. CEVAP ÖZ VE EREĞE UYGUN OLSUN (2-3 cümle). Boş cümle kurma.
+1. Kullanıcının mesajına BİLGECE, EMPATİK ve VİZYONER bir yanıt ver.
+2. Bilgiyi yaşam alanı vizyonuyla yorumla ama "ev" kelimesini kullanma (Agent 1 ise).
+3. HEMEN BİR SONRAKİ KATEGORİYE GEÇ VE SADECE BİR (1) SORU SOR.
+4. CEVAP 3-4 CÜMLE OLSUN. Duygusuz ve bot gibi konuşma.
 
 Yanıt:"""
 
@@ -499,8 +517,8 @@ Yanıt:"""
                 pass
                 
             if not profile.name:
-                return "Devam edelim, isminiz nedir?"
-            return f"{profile.name}, sizin için en uygun seçenekleri netleştirmek harika olacak. Hangi bölge size daha yakın hissettiriyor?"
+                return "Sohbetimize devam edelim, isminiz nedir?"
+            return f"Sizinle ilgili daha fazla şey öğrenmek beni mutlu ediyor {profile.name}. Hayatınızın bu döneminde sizi neler heyecanlandırıyor?"
     
     def _get_history(self, conversation: Conversation, count: int = 8) -> str:
         """Get detailed history."""

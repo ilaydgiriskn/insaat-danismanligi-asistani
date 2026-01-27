@@ -46,6 +46,15 @@ class Message:
         """Check if message is from assistant."""
         return self.role == MessageRole.ASSISTANT
     
+    def to_dict(self) -> dict:
+        """Convert message to dictionary."""
+        return {
+            "role": self.role.value,
+            "content": self.content,
+            "timestamp": self.timestamp.isoformat(),
+            "metadata": self.metadata
+        }
+    
     def __str__(self) -> str:
         return f"{self.role.value}: {self.content[:50]}..."
 
