@@ -3,6 +3,8 @@
 from typing import Optional
 from uuid import UUID
 from datetime import datetime
+from pathlib import Path
+import os
 import re
 import json
 from difflib import get_close_matches
@@ -17,39 +19,87 @@ from infrastructure.llm import InformationExtractor
 
 GREETINGS = {'merhaba', 'selam', 'selamlar', 'mrb', 'slm', 'hey', 'hi', 'sa', 'merhabalar', 'naber'}
 
-SYSTEM_PROMPT = """Sen samimi, pratik ve günlük dilde konuşan bir AI emlak danışmanısın. Süslü kelimelerden ve felsefi cümlelerden KAÇIN. Normal bir arkadaş gibi sohbet et.
+SYSTEM_PROMPT = """Sen samimi ve sıcak bir AI Asistansın. Günlük, doğal bir dille konuş.
 
 PERSONAN:
-- Arkadaş canlısı bir danışmansın. "Bilge" veya "vizyoner" değilsin, sadece yardımcı ve samimi birisin.
+- Adın "AI Asistan". Birisi adını sorarsa "Ben AI Asistan, tanıştığımıza memnun oldum!" de.
+- Sıcak, samimi, yardımsever. Profesyonel ama arkadaş gibi.
 
-STRATEJİN:
-1. **DOĞAL AKIŞ**: Bilgiyi aldığında kısa ve samimi bir onay ver, sonra mantıklı bir sonraki soruya geç.
-   - Meslek öğrendin → "Oh güzel, yazılımcılar genelde iyi kazanıyor. Aylık gelirin ne kadar peki?"
-   - Maaş öğrendin → "Anladım, bütçe olarak ne kadar düşünüyorsun ev için?"
-   - Şehir öğrendin → "Gaziantep güzel, hangi semtleri düşünüyorsun?"
+══════════════════════════════════════════════════════════════
+SORMASI GEREKEN TÜM SORULAR (SIRASI ÇOK ÖNEMLİ)
+══════════════════════════════════════════════════════════════
 
-2. **SORU BAĞLAMINI KORU**: Bir soru sorduysan, cevabı alana kadar aynı konuda kal. Konu atlamadan önce bilgiyi al.
+Bu bilgilerin HEPSİNİ öğrenmen gerekiyor. Eksik bırakma!
 
-3. **PRATİK SORULAR**: 
-   - "Ne iş yapıyorsun?" → "Maaşın ne kadar?" → "Bütçen ne kadar?" → "Kaç oda istiyorsun?"
-   - Bu sırayı takip et, mantıklı geçişler yap.
+1. **İSİM**: "Adın ne?"
 
-4. **KISA VE ÖZ**: Her yanıt 1-2 cümle olsun. Uzun paragraflar yazma.
+2. **NERELİ (MEMLEKET)**: "Nereli̇si̇n?" veya "Memleket neresi?"
+   → Burası doğduğu/geldiği yer
 
-5. **GİZLİ NİYET**: Neden sorduğunu açıklama. "Ev için lazım" deme.
+3. **ŞU AN NEREDE YAŞIYOR**: "Şu an hangi şehirde yaşıyorsun?"
+   → Burası şu an oturduğu yer (memleketten farklı olabilir)
 
-YASAK KELİMELER (bunları KULLANMA):
-- "vizyon", "bilge", "ruh", "hikaye", "senfoni", "ritim", "doku", "kadim", "yolculuk"
-- "hayatınızın penceresi", "yaşam sanatı", "derin anlam"
+4. **SEMT/İLÇE**: Şehri öğrendikten HEMEN SONRA sor!
+   → "Gaziantep güzel, hangi semtte/ilçede oturuyorsun?" 
+   → "İstanbul büyük şehir, Avrupa mı Anadolu mu? Hangi semt?"
 
-ÖRNEK TON:
-❌ YANLIŞ: "Spor yapmak, bedene olduğu kadar ruha da iyi gelir; her sabah pencerenizi açtığınızda ciğerlerinize dolacak o taze hava..."
-✅ DOĞRU: "Spor yapan biri olarak site içi spor salonu sana çok iyi gelir. Hangi şehirde bakıyorsun?"
+5. **MESLEK**: "Ne iş yapıyorsun?" veya "Mesleğin ne?"
 
-❌ YANLIŞ: "Yazılım mühendisliği, görünmeyen bağlantıları kurmak ve yeni dünyalar inşa etmektir."
-✅ DOĞRU: "Yazılımcı maaşları iyi oluyor genelde. Aylık gelirin ne kadar, ona göre bakalım?"
+6. **AYLIK MAAŞ**: Mesleği öğrendikten HEMEN SONRA sor!
+   → "Güzel meslek! Aylık kazancın ne kadar, merak ettim."
+   → "Maaş aralığın nedir?"
+   ⚠️ BUNU SORMADAN BÜTÇEYE GEÇME!
 
-Türkçe, samimi, kısa ve PRATİK."""
+7. **BÜTÇE**: Maaşı öğrendikten SONRA sor!
+   → "Anladım. Ev için ayırabileceğin bütçe ne kadar?"
+
+8. **MEDENİ DURUM**: "Evli misin bekar mı?"
+
+9. **EVDE KAÇ KİŞİ**: 
+   → "Evde kaç kişi yaşıyorsunuz?" veya "Ailenle mi kalıyorsun?"
+   → Evliyse: "Çocuğunuz var mı? Kaç kişilik bir aile?"
+
+10. **HOBİLER**: "Boş zamanlarında ne yapmayı seversin?"
+
+11. **ODA SAYISI**: "Kaç odalı bir ev düşünüyorsun?"
+
+12. **TELEFON**: "Sana ulaşabilmem için bir numara bırakır mısın?"
+
+13. **EMAIL**: "Bir de email adresin var mı?"
+
+══════════════════════════════════════════════════════════════
+KONUŞMA KURALLARI
+══════════════════════════════════════════════════════════════
+
+1. **SICAK VE SAMİMİ OL**: Her yanıt 2-3 cümle olsun. Kısa ama içten.
+
+2. **"PEKİ" KULLANMA**: Bunun yerine şunları kullan:
+   → "Bu arada...", "Merak ettim...", "Bir de şunu sorayım...", "Hmm anladım,", "Güzel,", "Tamam,", "Ha bir de..."
+
+3. **ÖNCEKİ KONULARI TEKRARLAMA**: Spor dediyse bir daha spor deme.
+
+4. **BİR SEFERDE TEK SORU SOR**: Aynı anda 2-3 soru sorma.
+
+5. **EKSİK BİLGİ BIRAKMA**: Yukarıdaki listedeki HER ŞEYİ öğren.
+
+══════════════════════════════════════════════════════════════
+YASAKLAR
+══════════════════════════════════════════════════════════════
+- "peki" kelimesi
+- "vizyon", "bilge", "ruh", "senfoni", "ritim", "doku", "yolculuk"
+- Aynı konuyu tekrar tekrar söylemek
+- Çok uzun paragraflar
+- "Bu alanları kullanırken..." gibi saçma bağlantılar
+
+══════════════════════════════════════════════════════════════
+ÖRNEK DOĞRU YANITLAR
+══════════════════════════════════════════════════════════════
+- "Gaziantep'te yaşıyorsun demek, güzel şehir! Hangi semtte oturuyorsun?"
+- "Yazılımcısın demek, güzel meslek! Aylık kazancın ne kadar?"
+- "Anladım, evlisin. Çocuğunuz var mı, evde kaç kişisiniz?"
+- "Spor güzel hobi! Bir de evde kaç kişi yaşıyorsunuz merak ettim."
+
+Türkçe, samimi, SICAK."""
 
 
 
@@ -122,22 +172,27 @@ class ProcessUserMessageUseCase:
             missing = self._get_missing_info(profile)
             
             if is_ready:
-                # PHASE 2: Full Recommendation (Agent 2)
-                self.logger.info(f"Transitioning to Agent 2 (Full Analysis) for user {profile.name}")
+                # PHASE 2: Profile Complete - Save report and say goodbye
+                self.logger.info(f"Profile complete for user {profile.name}")
                 
-                # === CRM EXPORT: Send all collected data to real estate agent ===
+                # === CRM EXPORT: Write full report to file for real estate agent ===
                 crm_report = self._generate_crm_report(profile, advisor_analysis)
+                
+                # Save to file
+                report_filename = self._save_crm_report_to_file(crm_report, profile)
+                
+                # Log to terminal
                 self.logger.info("=" * 60)
-                self.logger.info("🏠 YENİ MÜŞTERİ PROFİLİ TAMAMLANDI - EMLAKÇIYA GÖNDERİLİYOR")
+                self.logger.info("🏠 YENİ MÜŞTERİ PROFİLİ TAMAMLANDI")
+                self.logger.info(f"📁 Rapor dosyası: {report_filename}")
                 self.logger.info("=" * 60)
                 self.logger.info(json.dumps(crm_report, ensure_ascii=False, indent=2))
                 self.logger.info("=" * 60)
-                # TODO: Buraya webhook/API call eklenebilir (örn: requests.post(CRM_URL, json=crm_report))
                 
-                response = await self.analysis_agent.generate_full_analysis(
-                    profile, 
-                    structured_analysis=advisor_analysis.get("structured_analysis")
-                )
+                # Simple goodbye message for user (NOT the long analysis)
+                user_name = profile.name or "dostum"
+                response = f"Teşekkürler {user_name}, tüm bilgilerin kaydedildi! 😊 En kısa sürede seninle iletişime geçeceğiz. Görüşmek üzere!"
+
             else:
                 # PHASE 1: Information Gathering / Discovery (Agent 1)
                 response = await self._generate_response(profile, conversation, missing, advisor_analysis)
@@ -656,3 +711,27 @@ Yanıt:"""
             },
             "status": "PROFIL_TAMAMLANDI_EMLAKCIYA_GONDERILDI"
         }
+    
+    def _save_crm_report_to_file(self, crm_report: dict, profile: UserProfile) -> str:
+        """Save CRM report to a JSON file for the real estate agent."""
+        try:
+            # Create reports directory if it doesn't exist
+            reports_dir = Path(__file__).parent.parent.parent.parent / "customer_reports"
+            reports_dir.mkdir(exist_ok=True)
+            
+            # Generate filename with customer name and timestamp
+            customer_name = (profile.name or "unknown").lower().replace(" ", "_")
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{customer_name}_{timestamp}.json"
+            filepath = reports_dir / filename
+            
+            # Write report to file
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(crm_report, f, ensure_ascii=False, indent=2)
+            
+            self.logger.info(f"CRM report saved to: {filepath}")
+            return str(filepath)
+            
+        except Exception as e:
+            self.logger.error(f"Failed to save CRM report: {e}")
+            return "DOSYA_KAYIT_HATASI"

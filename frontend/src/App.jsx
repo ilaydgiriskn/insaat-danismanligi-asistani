@@ -21,10 +21,11 @@ function App() {
     // Welcome message
     setMessages([{
       role: 'assistant',
-      content: 'Merhaba! Ben AI emlak danışmanınızım 😊 Sizinle tanışmak isterim. İsminiz nedir?',
+      content: 'Merhaba! Ben AI Asistanınızım 😊 Seninle tanışmak isterim, adın ne?',
       timestamp: new Date()
     }]);
   }, []);
+
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
