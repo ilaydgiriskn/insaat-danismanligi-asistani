@@ -23,6 +23,7 @@ class LangChainService(ILLMService):
             temperature=self.settings.openai_temperature,
             max_tokens=self.settings.openai_max_tokens,
             openai_api_key=self.settings.openai_api_key,
+            base_url=self.settings.openai_base_url,
         )
     
     async def generate_response(
@@ -47,6 +48,7 @@ class LangChainService(ILLMService):
                 temperature=temperature,
                 max_tokens=max_tokens,
                 openai_api_key=self.settings.openai_api_key,
+                base_url=self.settings.openai_base_url,
             )
             
             response = await llm.ainvoke(messages)

@@ -28,9 +28,10 @@ class Settings(BaseSettings):
     database_pool_size: int = 5
     database_max_overflow: int = 10
     
-    # OpenAI / LLM
+    # LLM Configuration (DeepSeek/OpenAI Compatible)
     openai_api_key: str
-    openai_model: str = "gpt-4"
+    openai_model: str = "deepseek-chat"
+    openai_base_url: str = "https://api.deepseek.com/v1"
     openai_temperature: float = 0.7
     openai_max_tokens: int = 1000
     
