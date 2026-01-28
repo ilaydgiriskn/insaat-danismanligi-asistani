@@ -219,7 +219,7 @@ class ProcessUserMessageUseCase:
             self.logger.error(f"Error in _update_profile_from_message: {str(e)}", exc_info=True)
 
     def _extract_all_info(self, profile: UserProfile, message: str) -> None:
-        """Extract ALL info with fuzzy matching."""
+        """Simple manual extraction fallback (optional since LLM does the main work)."""
         msg = message.strip()
         msg_lower = msg.lower()
         
@@ -230,61 +230,27 @@ class ProcessUserMessageUseCase:
         if clean in GREETINGS:
             return
         
-        # NAME extraction
+        # NAME extraction (Simple first word fallback if name is completely missing)
         if not profile.name and len(clean.split()) <= 4:
             # Look for "adım X" pattern
             name_match = re.search(r'ad[iıî]m\s+(\w+)', clean)
             if name_match:
                 profile.name = name_match.group(1).title()
                 profile.answered_categories.add(QuestionCategory.NAME)
-                self.logger.info(f"Extracted name: {profile.name}")
                 return
             
-            # Short message without question words might be name
+            # Very short message might be a name
             words = [w for w in clean.split() if w not in GREETINGS and w not in ['benim', 'adım', 'ben', 'evet', 'hayır', 'var', 'yok']]
-            if words and len(words[0]) > 1 and len(words[0]) < 15:
-                potential_name = words[0]
-                # Not a city or profession
-                if potential_name not in self.CITIES and potential_name not in ['doktor', 'mühendis', 'öğretmen']:
-                    profile.name = potential_name.title()
+            if len(words) == 1 and 2 < len(words[0]) < 15:
+                # Basic check to avoid common words, but LLM will correct this if wrong
+                if words[0] not in ['doktor', 'istanbul', 'ankara', 'evet']:
+                    profile.name = words[0].title()
                     profile.answered_categories.add(QuestionCategory.NAME)
-                    self.logger.info(f"Extracted name: {profile.name}")
                     return
         
-        # CITY extraction with FUZZY matching
-        city_found = False
-        for city in self.CITIES:
-            if city in clean:
-                if not profile.hometown:
-                    profile.hometown = city.title()
-                    profile.answered_categories.add(QuestionCategory.HOMETOWN)
-                    self.logger.info(f"Extracted city (exact): {profile.hometown}")
-                    city_found = True
-                elif not profile.location:
-                    from domain.value_objects import Location
-                    profile.location = Location(city=city.title(), country="Turkey")
-                    profile.answered_categories.add(QuestionCategory.LOCATION)
-                    self.logger.info(f"Extracted target city: {city}")
-                    city_found = True
-                break
-        
-        # If no exact match, try fuzzy
-        if not city_found:
-            words = clean.split()
-            for word in words:
-                if len(word) > 4:  # At least 5 chars for fuzzy
-                    matches = get_close_matches(word, self.CITIES, n=1, cutoff=0.75)
-                    if matches:
-                        city = matches[0]
-                        if not profile.hometown:
-                            profile.hometown = city.title()
-                            profile.answered_categories.add(QuestionCategory.HOMETOWN)
-                            self.logger.info(f"Extracted city (fuzzy): {profile.hometown}")
-                        elif not profile.location:
-                            from domain.value_objects import Location
-                            profile.location = Location(city=city.title(), country="Turkey")
-                            profile.answered_categories.add(QuestionCategory.LOCATION)
-                        break
+        # Note: City, Profession, Hobbies etc. are now handled 100% by the LLM-based 
+        # _update_profile_from_message method which supports all of Turkey's districts.
+        return
         
         # PROFESSION extraction
         if not profile.profession:
