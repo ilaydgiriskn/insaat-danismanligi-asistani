@@ -19,36 +19,31 @@ from infrastructure.llm import InformationExtractor
 
 GREETINGS = {'merhaba', 'selam', 'selamlar', 'mrb', 'slm', 'hey', 'hi', 'sa', 'merhabalar', 'naber'}
 
-SYSTEM_PROMPT = """Sen samimi, sıcak ve Türkiye'nin her köşesini avucunun içi gibi bilen bir AI Asistansın. 
-Görevin, kullanıcıyla doğal bir sohbet ederken müteahhit/emlakçı için gerekli olan kritik bilgileri çaktırmadan toplamak.
+SYSTEM_PROMPT = """Sen bir AI Emlak Danışmanısın.
+Görevin: Kullanıcıyla GÜNLÜK, DOĞAL ve KISA sohbet ederek, kullanıcının KONUT İHTİYAÇLARINI ve EVLE İLİŞKİLİ yaşam tarzını anlamak.
 
-PERSONAN:
-- Adın "AI Asistan". Samimi, cana yakın ve çok bilgili bir dostsun.
-- Türkiye'nin 81 iline ve tüm ilçelerine/semtlerine hakimsin. (Örn: Birisi "Beşiktaş" dediğinde oranın ruhunu, "Şahinbey" dediğinde oranın dokusunu bildiğini hissettir.)
+❗ ANA AMAÇ DIŞINA ÇIKMA YASAK. Tanışma sohbeti değil, sonuç odaklı danışmanlık.
 
-TEMEL PRENSİPLER:
-1. **SOHBET ET, FORM DOLDURTMA**: Soruları bir anketör gibi değil, konunun gelişine göre doğal bir şekilde sor. Kullanıcının verdiği cevabı mutlaka 1-2 cümleyle onayla ve samimi bir yorum kat.
-2. **HEDEF ODAKLI OL**: Sohbeti amacından saptıracak, "havadan sudan" gereksiz sorulara boğma. Her mesajın bir sonraki bilgiye köprü olsun.
-3. **LLM GÜCÜNÜ KULLAN**: Meslekler, hobiler, semtler için sabit listelere bağlı kalma. Kullanıcı ne derse anla ve ona göre doğal tepkiler ver.
+KONUŞMA KURALLARI (ÇOK ÖNEMLİ):
+1. **SADECE AMACA YÖNELİK SORU**: Müzik, aile veya hobi sadece ev tercihlerini (oda sayısı, yalıtım, konum vb.) etkiliyorsa sor. Süsleme, edebiyat, nostalji YASAK.
+2. **TEK MESAJ TEK SORU**: Her mesajda SADECE 1 soru sor. Asla 2 soru sorma. Seçenekli uzun sorular sorma.
+3. **TEKRAR YASAK**: Kullanıcının verdiği bilgiyi (örn: "5 kişilik aile") cevapta tekrar etme. (Yanlış: "5 kişilik aileniz için...", Doğru: "Oda dağılımı bu durumda önemli...")
+4. **DİL**: 2-3 kısa cümle. Net, duru, günlük. Metafor ve övgü yok.
+5. **İSİM-SOYİSİM**: İlk başta sadece İSİM sor. Soyisimi EN SONDA iletişim bilgileriyle al.
+6. **HIZ**: Gereksiz özetleme yapma. Hızlı ilerle.
 
-ZORUNLU BİLGİ LİSTESİ (Sohbet Akışında Mutlaka Öğren):
-- **İsim Soyisim**: İlk etapta öğren. "Adın ve soyadın nedir?" gibi tam isim al.
-- **Nereli (Memleket) & Şu An Nerede Yaşıyor**: Bu ikisi arasındaki farkı anla.
-- **Semt/İlçe**: Şehir bilgisinden sonra mutlaka derinleş. "İstanbul'un hangi semti?" gibi.
-- **Meslek & Aylık Kazanç**: Mesleği öğrendikten sonra maaşı doğal bir merakla sor. (Örn: "Yazılımcılık harika, peki bu yoğun emeğin aylık karşılığı ortalama ne kadardır?")
-- **Bütçe**: Kazanç bilgisinden sonra konut için ayrılan bütçeye geç.
-- **Medeni Durum & Aile Yapısı**: Kaç kişi yaşadıkları, çocuk durumu vb.
-- **Hobiler**: Yaşam tarzını anlamak için önemli.
-- **Konut Tercihi**: Oda sayısı, beklentiler.
-- **İletişim**: Telefon ve Email.
+EV ODAĞI KONTROLÜ:
+Sorduğun her soru şu testten geçmeli: "Bu soru kullanıcının ev tercihini anlamama yardım ediyor mu?" Cevap hayırsa SORMA.
 
-KURALLAR:
-- **"PEKİ" KELİMESİ KESİNLİKLE YASAK.** (Bunun yerine: "Anladım,", "Harika,", "Peki ya...", "Merak ettim de,", "Bu arada," gibi ifadeler kullan.)
-- Her seferinde SADECE BİR soru sor.
-- Yanıtların 2-3 cümlelik samimi ve bilgi dolu bloklar olsun.
-- Önceki konuları (örn: spor) sürekli tekrarlayıp kullanıcıyı darlama.
+BİLGİ TOPLAMA SIRASI (Esnek ama hedefli):
+1. İsim (Sadece ön ad)
+2. Mevcut Konum & Memleket
+3. Meslek & Maaş (Bütçe için kritik)
+4. Aile/Medeni Durum (Oda sayısı için)
+5. Evle İlgili Hobiler (Spor, müzik, mutfak vb.)
+6. **FİNAL**: Soyisim, Telefon, Email.
 
-TON: Samimi, bilgili, sıcak ve çözüm odaklı. Türkiye coğrafyasına hakim bir dost."""
+TON: Arkadaş gibi ama ciddi, iş bitirici bir danışman."""
 
 
 class ProcessUserMessageUseCase:
@@ -112,27 +107,15 @@ class ProcessUserMessageUseCase:
             missing = self._get_missing_info(profile)
             
             if is_ready:
-                # PHASE 2: Profile Complete - Save report and say goodbye
-                self.logger.info(f"Profile complete for user {profile.name}")
+                # PHASE 2: Profile Complete - Silent transition to Guidance (Agent 2)
+                self.logger.info(f"Profile complete for {profile.name} {profile.surname}. Transitioning to Guidance.")
                 
-                # === CRM EXPORT: Write full report to file for real estate agent ===
+                # CRM EXPORT: Silent background report
                 crm_report = self._generate_crm_report(profile, advisor_analysis)
+                self._save_crm_report_to_file(crm_report, profile)
                 
-                # Save to file
-                report_filename = self._save_crm_report_to_file(crm_report, profile)
-                
-                # Log to terminal
-                self.logger.info("=" * 60)
-                self.logger.info("🏠 YENİ MÜŞTERİ PROFİLİ TAMAMLANDI")
-                self.logger.info(f"📁 Rapor dosyası: {report_filename}")
-                self.logger.info("=" * 60)
-                self.logger.info(json.dumps(crm_report, ensure_ascii=False, indent=2))
-                self.logger.info("=" * 60)
-                
-                # Simple goodbye message for user (NOT the long analysis)
-                user_name = profile.name or "dostum"
-                response = f"Teşekkürler {user_name}, tüm bilgilerin kaydedildi! 😊 En kısa sürede seninle iletişime geçeceğiz. Görüşmek üzere!"
-
+                # Use Agent 2's guidance message instead of a goodbye
+                response = advisor_analysis.get("guidance_cue", "Hayalindeki evi bulmak için kriterlerin üzerinden geçmeye devam edebiliriz.")
             else:
                 # PHASE 1: Information Gathering / Discovery (Agent 1)
                 response = await self._generate_response(profile, conversation, missing, advisor_analysis)
@@ -165,7 +148,12 @@ class ProcessUserMessageUseCase:
                 return
 
             # Map fields to UserProfile
-            if extracted_info.get("name"): profile.name = extracted_info["name"]
+            if extracted_info.get("name"): 
+                profile.name = extracted_info["name"]
+                profile.answered_categories.add(QuestionCategory.NAME)
+            if extracted_info.get("surname"): 
+                profile.surname = extracted_info["surname"]
+                profile.answered_categories.add(QuestionCategory.SURNAME)
             if extracted_info.get("email"): profile.email = extracted_info["email"]
             if extracted_info.get("phone"): profile.phone_number = extracted_info["phone"]
             if extracted_info.get("hometown"): profile.hometown = extracted_info["hometown"]

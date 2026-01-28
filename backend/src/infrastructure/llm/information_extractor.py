@@ -43,6 +43,7 @@ Cevap formatı kesinlikle JSON olmalıdır. Boş kalan yerleri `null` yap. kateg
                 system_message="Sen bilgi çıkarma uzmanısın. Kullanıcı mesajlarından yapılandırılmış bilgi çıkarırsın.",
                 response_format={
                     "name": "string or null",
+                    "surname": "string or null",
                     "email": "string or null",
                     "phone": "string or null",
                     "hometown": "string or null",

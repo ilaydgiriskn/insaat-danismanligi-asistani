@@ -24,6 +24,7 @@ class UserProfile:
     
     # User information
     name: Optional[str] = None
+    surname: Optional[str] = None
     email: Optional[str] = None
     phone_number: Optional[str] = None
     hometown: Optional[str] = None
@@ -96,11 +97,18 @@ class UserProfile:
     
     def is_complete(self) -> bool:
         """
-        Check if profile has sufficient information for full analysis.
+        Check if profile has the 6 mandatory fields for Agent 2 transition.
+        Mandatory: name, surname, profession, estimated_salary, email, location.city
         """
-        has_basic = bool(self.name and (self.profession or self.hometown) and self.marital_status and self.hobbies)
-        has_property = bool(self.budget and self.location and self.property_preferences and self.property_preferences.min_rooms)
-        return has_basic and has_property
+        has_mandatory = bool(
+            self.name and 
+            self.surname and 
+            self.profession and 
+            self.estimated_salary and 
+            self.email and 
+            (self.location and self.location.city)
+        )
+        return has_mandatory
     
     def _mark_updated(self) -> None:
         """Mark the entity as updated."""

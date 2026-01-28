@@ -7,6 +7,7 @@ class QuestionCategory(str, Enum):
     """Categories of questions asked to users during information gathering."""
 
     NAME = "name"
+    SURNAME = "surname"
     HOMETOWN = "hometown"
     PROFESSION = "profession"
     MARITAL_STATUS = "marital_status"

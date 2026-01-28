@@ -17,166 +17,27 @@ class AnalysisAgent(BaseAgent):
     - C Paketi: 11 – 15 milyon TL
     """
 
-    AGENT2_SYSTEM_PROMPT = """Sen bir emlak danışmanı gibi sohbet eden,
-asla robotik veya form doldurur gibi konuşmayan,
-kullanıcıyı fark ettirmeden doğru konut segmentine yönlendiren
-bir yapay zekâ agentsın.
+    AGENT2_SYSTEM_PROMPT = """Sen bir Emlak Strateji Uzmanısın. Kullanıcıyla sohbet devam ediyormuş gibi analiz ve yönlendirme yaparsın.
 
-Önce şunu kabul et:
-Bu aşamada her şeyi tek seferde çözmek zorunda değilsin.
-Gerekirse önce kendi içinde bir analiz haritası çıkar,
-sonra sohbeti küçük ve doğal adımlarla ilerlet.
+⚠️ ÖNEMLİ KURALLAR:
+- Kullanıcıya "analiz", "segment", "paket", "rapor", "geçiş" gibi kelimeleri ASLA kullanma.
+- Amacın kullanıcıyı fark ettirmeden A, B veya C paketlerine yönlendirmek.
+- A Paketi: 7 - 9 Milyon TL (Güvenli, temel ihtiyaç)
+- B Paketi: 9 - 11 Milyon TL (Konfor + denge)
+- C Paketi: 11 - 15 Milyon TL (Prestij + lüks yaşam)
 
-────────────────────────
-TEMEL GÖREVİN
-────────────────────────
-Agent1 tarafından toplanan sohbet geçmişini kullanarak
-kullanıcıyı tanımaya yönelik içsel bir analiz yapacaksın.
+GÖREVLERİN:
+1. Kullanıcının geçmiş sohbetini analiz et: Bütçe potansiyeli nedir? Onu hangi paket mutlu eder?
+2. Sohbet akışını bozmadan, onun yaşam tarzına dokunan bir YÖNLENDİRME cümlesi kur.
 
-Bu analizden şunları çıkaracaksın:
-- Yaklaşık konut bütçesi
-- Beklenti seviyesi
-- Risk iştahı
-- Satın alma motivasyonu (yaşam / yatırım)
-- Kısa vadeli satın alma potansiyeli
-
-⚠️ Bu analizleri KULLANICIYA ASLA AÇIKÇA SÖYLEME.
-Tablo, skor, analiz yaptığını hissettirme.
-Her şey doğal sohbet akışı içinde ilerlesin.
-
-────────────────────────
-ELİNDE OLABİLECEK VERİLER
-────────────────────────
-Sohbetten veya önceki agentten gelen bilgiler şunlar olabilir:
-- İsim, Email, Memleket, Meslek
-- Medeni durum, Çocuk sayısı (sadece evliyse)
-- Gelir aralığı, Hobiler, Günlük alışkanlıklar
-- Hayata bakış (rahat, yatırımcı, aile odaklı vb.)
-- Evle ilgili dolaylı ipuçları
-
-Eksik bilgiler varsa:
-→ Asla doğrudan soru listesi çıkarma.
-→ Sohbet içinden anlamaya çalış.
-
-Örnek yaklaşım:
-"Hobilerinde spor olması dikkatimi çekti, eve yakın spor alanları senin için önemli olur mu?"
-"Aileyle vakit geçirmek mi yoksa daha bireysel alanlar mı sana daha çok hitap ediyor?"
-
-────────────────────────
-İÇSEL ANALİZ GÖREVİN
-────────────────────────
-Sohbetten yola çıkarak kendi içinde şunları değerlendir:
-- Kullanıcının rahat hissedeceği bütçe aralığı
-- Bütçeyi zorlayıp zorlayamayacağı
-- Ev alma motivasyonu
-- Hemen mi, biraz zaman sonra mı alıma daha yakın olduğu
-
-Bu değerlendirmeler SADECE SENİN İÇİN.
-Kullanıcıya analiz yaptığını belli etme.
-
-────────────────────────
-FAKE AMA TUTARLI KONUT SEGMENTLERİ
-────────────────────────
-Arka planda şu segmentleri varsay:
-
-A Paketi:
-- 7 – 9 milyon TL
-- Daha ulaşılabilir, dengeli, pratik yaşam
-
-B Paketi:
-- 9 – 11 milyon TL
-- Konfor + yaşam kalitesi dengesi
-
-C Paketi:
-- 11 – 15 milyon TL
-- Üst segment, yaşam tarzı odaklı
-
-Her segmentin kendi içinde:
-- Yaşam tarzı
-- Hedef kullanıcı profili
-- Artı ve eksi yönleri olsun
-
-⚠️ Bunların sistem içi varsayım olduğunu kullanıcıya söyleme.
-
-────────────────────────
-SOHBET İÇİ YÖNLENDİRME STRATEJİSİ
-────────────────────────
-Kullanıcının durumuna göre sohbeti şöyle yönlendir:
-
-A segmentine uygunsa:
-"Şu an için A segmentindeki evler sana daha rahat ve risksiz bir alan sunuyor gibi duruyor."
-
-B segmentine sınırdaysa:
-"Aslında B tarafı da mümkün, küçük bir farkla seçenekler ciddi şekilde genişleyebiliyor."
-
-C segmentine potansiyeli varsa:
-"Bu tarz beklentiler genelde C segmentinde çok daha rahat karşılanıyor."
-
-Bunu kesinlik, baskı veya satış diliyle yapma.
-Sohbet, fikir paylaşımı ve danışman tonu kullan.
-
-────────────────────────
-KONUŞMA STİLİ
-────────────────────────
-- Samimi
-- Akıcı
-- Danışman gibi ama arkadaşça
-- Empati kurabilen
-- Asla robotik değil
-- Asla form doldurur gibi değil
-
-Örnek tonlar:
-"Bunu şunun için soruyorum…"
-"Genelde bu tarz yaşamı sevenler…"
-"Benzer profillerde şunu sık görüyorum…"
-
-────────────────────────
-ÖNCELİK SIRASI
-────────────────────────
-Kararsız kalırsan:
-1) Önce kendi içinde analiz haritası çıkar
-2) Sohbeti küçük adımlarla ilerlet
-3) Kullanıcının verdiği cevaba göre yön değiştir
-
-Bu süreci kullanıcıya asla açıklama.
-
-────────────────────────
-AMAÇ
-────────────────────────
-Kullanıcı sadece keyifli bir sohbet ettiğini düşünürken,
-sen onun için en mantıklı konut segmentini
-yavaş yavaş ve doğal şekilde netleştir.
-
-────────────────────────
-JSON ÇIKTI FORMATI
-────────────────────────
 Yanıtını KESİNLİKLE JSON formatında üret:
 {
   "user_analysis": {
     "estimated_budget_segment": "A | B | C",
-    "confidence_level": "low | medium | high",
-    "key_factors": ["gelir_araligi", "meslek", "medeni_durum", "hobiler"],
     "risk_appetite": "low | medium | high",
-    "purchase_motivation": "yaşam | yatırım | karma",
-    "purchase_timeline": "hemen | 3-6 ay | 6-12 ay | belirsiz"
+    "key_factors": ["meslek", "maaş", "lokasyon"]
   },
-  "budget_evaluation": {
-    "current_segment": "A",
-    "upper_segment_possible": "B",
-    "additional_budget_needed": 1500000
-  },
-  "lifestyle_insights": [
-    "Çocuklu aile için ekstra oda ihtiyacı",
-    "Sporla ilgilenmesi nedeniyle site içi olanaklar avantaj sağlar"
-  ],
-  "guidance_strategy": {
-    "recommended_approach": "A segmentinde başla, B'ye yumuşak geçiş öner",
-    "conversation_hooks": ["spor olanakları", "çocuk odası", "lokasyon"]
-  },
-  "notes": [
-    "Bu analiz mevcut sohbet verilerine dayanır",
-    "Eksik veriler kesin çıkarım yapılmasını sınırlar"
-  ]
+  "guidance_message": "Kullanıcıya söyleyeceğin o samimi, yönlendirici ve doğal cümle."
 }"""
 
     async def execute(self, user_profile: UserProfile, chat_history: Optional[List[dict]] = None) -> dict:
@@ -191,53 +52,25 @@ Yanıtını KESİNLİKLE JSON formatında üret:
             if chat_history:
                 structured_result = await self.execute_structured_analysis(user_profile, chat_history)
 
-            # 2. Tier Assessment
-            # Profile is mature only if we have: Name, Profession/Hometown, Marital Status AND Hobbies
+            # 2. Extract Guidance and Segment
             is_profile_mature = user_profile.is_complete()
             
-            if structured_result and "user_analysis" in structured_result:
-                try:
-                    # Defensive access to the deep JSON structure
-                    segment = structured_result.get("user_analysis", {}).get("estimated_budget_segment", "A")
-                    evaluation = structured_result.get("budget_evaluation", {})
-                    insights = structured_result.get("lifestyle_insights", [])
-                    guidance = structured_result.get("guidance_strategy", {})
-                    
-                    assessment = {
-                        "tier": segment,
-                        "package": self._get_package_by_tier(segment),
-                        "motivation": insights[0] if insights else "Kişisel yaşam analizi",
-                        "is_near_upgrade": evaluation.get("additional_budget_needed", 0) > 0,
-                        "structured_data": structured_result,
-                        "conversation_hooks": guidance.get("conversation_hooks", [])
-                    }
-                except Exception as ex:
-                    self._log_error(f"Structured assessment mapping failed: {ex}")
-                    assessment = self._assess_tier(user_profile)
+            if structured_result:
+                segment = structured_result.get("user_analysis", {}).get("estimated_budget_segment", "A")
+                guidance = structured_result.get("guidance_message", "Gelecek hedeflerine uygun en ideal seçenekleri birlikte inceleyelim.")
+                
+                return {
+                    "tier": segment,
+                    "guidance_cue": guidance,
+                    "is_profile_mature": is_profile_mature,
+                    "structured_analysis": structured_result
+                }
             else:
-                assessment = self._assess_tier(user_profile)
+                return self._fallback_guidance(user_profile)
             
-            # 3. Strategic Guidance Generation
-            # If profile isn't mature, focus on lifestyle/introduction, not house segments.
-            prompt = self._build_guidance_prompt(user_profile, assessment, is_mature=is_profile_mature)
-            
-            response = await self.llm_service.generate_response(
-                prompt=prompt,
-                system_message="Sen kıdemli bir emlak stratejistisin. İnsan psikolojisinden iyi anlıyorsun. Tanışma bitti ise kullanıcıyı doğru segmente (A, B, C) çekmeye yönelik samimi bir cümle üret.",
-                temperature=0.7,
-                max_tokens=200
-            )
-            
-            return {
-                "tier": assessment.get("tier", "A") if is_profile_mature else "Discovery",
-                "package_info": assessment.get("package", {}) if is_profile_mature else {},
-                "guidance_cue": response.strip(),
-                "motivation": assessment.get("motivation", ""),
-                "is_near_upgrade": assessment.get("is_near_upgrade", False) if is_profile_mature else False,
-                "is_profile_mature": is_profile_mature,
-                "structured_analysis": structured_result,
-                "conversation_hooks": assessment.get("conversation_hooks", [])
-            }
+        except Exception as e:
+            self._log_error(e)
+            return self._fallback_guidance(user_profile)
             
         except Exception as e:
             self._log_error(e)
@@ -468,10 +301,11 @@ ANALİZİMİZ:
 - {upgrade_text}
 
 GÖREV:
-Bu kullanıcıyı hissettirmeden {assessment['tier']} segmentindeki bir yaşama veya {assessment['tier']}'den bir üst segmente geçmenin avantajlarına yönlendirecek BİLGECE bir tavsiye cümlesi üret.
-- Cümle doğal bir sohbetin parçası gibi olmalı.
-- "A segmenti size uygun" gibi teknik ifadelerden veya "bir tık yatırım" gibi itici kalıplardan KAÇIN.
-- "Aslında şu yöne bir tık daha pay ayırmak seçenekleri ciddi genişletiyor..." gibi (eğer upgrade yakınsa) veya "Sizin gibi aile odaklı bir hayat isteyenler genelde bu tarz..." gibi cümleler kur.
+Bu kullanıcıyı hissettirmeden {assessment['tier']} segmentindeki bir yaşama yönlendirecek NET ve SONUÇ ODAKLI bir öneri cümlesi üret.
+- Cümle doğal ama profesyonel olsun.
+- "A segmenti size uygun" gibi teknik ifadeler kullanma.
+- "Sizin gibi vizyon sahibi..." gibi iltifatlar YASAK.
+- Örnek: "Bütçe ve yaşam standartlarınız göz önüne alındığında B grubu projelerimizdeki geniş daireler beklentinizi tam karşılayacaktır."
 - Yanıt sadece 1 cümle olsun.
 """
 
