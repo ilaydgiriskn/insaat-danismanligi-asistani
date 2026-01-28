@@ -2,6 +2,7 @@
 
 from typing import Optional
 from uuid import UUID
+from datetime import datetime
 import re
 import json
 from difflib import get_close_matches
@@ -16,23 +17,40 @@ from infrastructure.llm import InformationExtractor
 
 GREETINGS = {'merhaba', 'selam', 'selamlar', 'mrb', 'slm', 'hey', 'hi', 'sa', 'merhabalar', 'naber'}
 
-SYSTEM_PROMPT = """Sen bilge, samimi ve derinlikli bir AI emlak danışmanısın. Gereksiz laf kalabalığından kaçınan ama her cümlesiyle bir vizyon sunan profesyonel bir dostsun.
+SYSTEM_PROMPT = """Sen samimi, pratik ve günlük dilde konuşan bir AI emlak danışmanısın. Süslü kelimelerden ve felsefi cümlelerden KAÇIN. Normal bir arkadaş gibi sohbet et.
 
 PERSONAN:
-- Adın yok, bir "AI Danışman"sın. Bilge bir rehber gibi empati kuran ve öngörüsü yüksek bir dil kullanırsın.
+- Arkadaş canlısı bir danışmansın. "Bilge" veya "vizyoner" değilsin, sadece yardımcı ve samimi birisin.
 
 STRATEJİN:
-1. **BİLGE EMPATİ VE YORUMLAMA**: Kullanıcının verdiği bilgiyi (Örn: Spor) kuru bir bilgi gibi değil, yaşamın bir parçası olarak onayla ve emlak/konum bağlamına vizyoner bir şekilde oturt. (Örn: "Spor yapmak bedene olduğu kadar ruha da iyi gelir; her sabah pencerenizi açtığınızda ciğerlerinize dolacak o taze hava, aktif yaşamınızın en büyük ödülü olacaktır.")
-2. **KATEGORİ GEÇİŞ ZORUNLULUĞU**: Bir bilgi öğrenildiğinde, onu derin bir cümleyle onayla/yorumla ve hemen ardından bir sonraki eksik profil kategorisine (Aile, Medeni Durum vb.) ait TEK bir soru sor.
-3. **SIFIR NİYET İFADESİ**: Soruyu neden sorduğunu asla açıklama. "Ev için önemli" gibi niyet belirten ifadeler KESİNLİKLE YASAKTIR.
-4. **AGENT 1 GİZLİ**: Sohbetin başlarında (Agent 1) "ev", "konut", "emlak", "bütçe" gibi kelimeleri kullanma. Sadece yaşam vizyonu üzerinden konuş.
+1. **DOĞAL AKIŞ**: Bilgiyi aldığında kısa ve samimi bir onay ver, sonra mantıklı bir sonraki soruya geç.
+   - Meslek öğrendin → "Oh güzel, yazılımcılar genelde iyi kazanıyor. Aylık gelirin ne kadar peki?"
+   - Maaş öğrendin → "Anladım, bütçe olarak ne kadar düşünüyorsun ev için?"
+   - Şehir öğrendin → "Gaziantep güzel, hangi semtleri düşünüyorsun?"
 
-SOHBET TARZI:
-- Akıcı, bilge, vizyoner ve samimi.
-- Yanıtlar 3-4 cümleden oluşmalı; ne çok kısa ne çok uzun, tam kıvamında ve etkileyici olmalı.
-- İsim tekrarı yapma. Robotik onaylardan kaçın.
+2. **SORU BAĞLAMINI KORU**: Bir soru sorduysan, cevabı alana kadar aynı konuda kal. Konu atlamadan önce bilgiyi al.
 
-Türkçe, samimi, bilge ve VİZYONER."""
+3. **PRATİK SORULAR**: 
+   - "Ne iş yapıyorsun?" → "Maaşın ne kadar?" → "Bütçen ne kadar?" → "Kaç oda istiyorsun?"
+   - Bu sırayı takip et, mantıklı geçişler yap.
+
+4. **KISA VE ÖZ**: Her yanıt 1-2 cümle olsun. Uzun paragraflar yazma.
+
+5. **GİZLİ NİYET**: Neden sorduğunu açıklama. "Ev için lazım" deme.
+
+YASAK KELİMELER (bunları KULLANMA):
+- "vizyon", "bilge", "ruh", "hikaye", "senfoni", "ritim", "doku", "kadim", "yolculuk"
+- "hayatınızın penceresi", "yaşam sanatı", "derin anlam"
+
+ÖRNEK TON:
+❌ YANLIŞ: "Spor yapmak, bedene olduğu kadar ruha da iyi gelir; her sabah pencerenizi açtığınızda ciğerlerinize dolacak o taze hava..."
+✅ DOĞRU: "Spor yapan biri olarak site içi spor salonu sana çok iyi gelir. Hangi şehirde bakıyorsun?"
+
+❌ YANLIŞ: "Yazılım mühendisliği, görünmeyen bağlantıları kurmak ve yeni dünyalar inşa etmektir."
+✅ DOĞRU: "Yazılımcı maaşları iyi oluyor genelde. Aylık gelirin ne kadar, ona göre bakalım?"
+
+Türkçe, samimi, kısa ve PRATİK."""
+
 
 
 class ProcessUserMessageUseCase:
@@ -106,6 +124,16 @@ class ProcessUserMessageUseCase:
             if is_ready:
                 # PHASE 2: Full Recommendation (Agent 2)
                 self.logger.info(f"Transitioning to Agent 2 (Full Analysis) for user {profile.name}")
+                
+                # === CRM EXPORT: Send all collected data to real estate agent ===
+                crm_report = self._generate_crm_report(profile, advisor_analysis)
+                self.logger.info("=" * 60)
+                self.logger.info("🏠 YENİ MÜŞTERİ PROFİLİ TAMAMLANDI - EMLAKÇIYA GÖNDERİLİYOR")
+                self.logger.info("=" * 60)
+                self.logger.info(json.dumps(crm_report, ensure_ascii=False, indent=2))
+                self.logger.info("=" * 60)
+                # TODO: Buraya webhook/API call eklenebilir (örn: requests.post(CRM_URL, json=crm_report))
+                
                 response = await self.analysis_agent.generate_full_analysis(
                     profile, 
                     structured_analysis=advisor_analysis.get("structured_analysis")
@@ -579,3 +607,52 @@ Yanıt:"""
             return c
         except:
             return Conversation(user_profile_id=user_id)
+    
+    def _generate_crm_report(self, profile: UserProfile, advisor_analysis: dict) -> dict:
+        """Generate comprehensive CRM report for real estate agent."""
+        structured = advisor_analysis.get("structured_analysis", {})
+        user_analysis = structured.get("user_analysis", {}) if structured else {}
+        budget_eval = structured.get("budget_evaluation", {}) if structured else {}
+        
+        return {
+            "rapor_tarihi": datetime.now().isoformat(),
+            "musteri_bilgileri": {
+                "isim": profile.name,
+                "telefon": profile.phone_number,
+                "email": profile.email,
+                "memleket": profile.hometown,
+            },
+            "profesyonel_bilgiler": {
+                "meslek": profile.profession,
+                "tahmini_maas": profile.estimated_salary,
+            },
+            "aile_bilgileri": {
+                "medeni_durum": profile.marital_status,
+                "cocuk_var_mi": profile.has_children,
+                "aile_buyuklugu": profile.family_size,
+            },
+            "yasam_tarzi": {
+                "hobiler": profile.hobbies,
+            },
+            "konut_tercihleri": {
+                "hedef_sehir": profile.location.city if profile.location else profile.hometown,
+                "hedef_ilce": profile.location.district if profile.location and hasattr(profile.location, 'district') else None,
+                "oda_sayisi": profile.property_preferences.min_rooms if profile.property_preferences else None,
+                "ev_tipi": profile.property_preferences.property_type.value if profile.property_preferences and profile.property_preferences.property_type else None,
+            },
+            "butce_analizi": {
+                "belirtilen_butce": profile.budget.max_amount if profile.budget else None,
+                "para_birimi": profile.budget.currency if profile.budget else "TRY",
+                "tavsiye_edilen_segment": user_analysis.get("estimated_budget_segment", "A"),
+                "guven_seviyesi": user_analysis.get("confidence_level", "medium"),
+                "ust_segmente_gecis_mumkun": budget_eval.get("upper_segment_possible"),
+                "ek_butce_gerekli": budget_eval.get("additional_budget_needed"),
+            },
+            "ai_degerlendirmesi": {
+                "risk_istahi": user_analysis.get("risk_appetite", "orta"),
+                "satin_alma_motivasyonu": user_analysis.get("purchase_motivation", "yasam"),
+                "satin_alma_zamani": user_analysis.get("purchase_timeline", "belirsiz"),
+                "yasam_tarzi_notlari": structured.get("lifestyle_insights", []) if structured else [],
+            },
+            "status": "PROFIL_TAMAMLANDI_EMLAKCIYA_GONDERILDI"
+        }
