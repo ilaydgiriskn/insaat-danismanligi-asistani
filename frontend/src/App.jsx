@@ -21,7 +21,7 @@ function App() {
     // Welcome message
     setMessages([{
       role: 'assistant',
-      content: 'Merhaba! Ben AI Asistanınızım 😊 Seninle tanışmak isterim, adın ne?',
+      content: 'Merhaba, size yardımcı olmak için buradayım. İsim ve soyisminizi rica edebilir miyim?',
       timestamp: new Date()
     }]);
   }, []);
@@ -104,11 +104,6 @@ function App() {
                   }`}
               >
                 <p className="whitespace-pre-wrap">{message.content}</p>
-                {message.isComplete && (
-                  <div className="mt-2 pt-2 border-t border-white/20">
-                    <span className="text-xs opacity-75">✓ Profil tamamlandı</span>
-                  </div>
-                )}
               </div>
             </div>
           ))}
@@ -147,7 +142,7 @@ function App() {
           </form>
         </div>
       </div>
-    </div>
+    </div >
   );
 }
 

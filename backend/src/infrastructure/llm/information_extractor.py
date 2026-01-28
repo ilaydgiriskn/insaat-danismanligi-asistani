@@ -30,12 +30,17 @@ Konuşma Geçmişi (Sondan başa doğru):
 
 GÖREV:
 1. Kullanıcının verdiği net bilgileri çıkar.
-2. **Medeni Durum (marital_status)**: "evleneceğim", "nişanlıyım", "sevgilimle yaşayacağım" gibi ifadeleri "evli/nişanlı" kategorisine yönlendir. 
-3. **Bütçe ve Oda**: Rakamları netleştir. "6 milyon" -> 6000000.
-4. 'answered_categories' listesine, mesajda cevabı bulunan kategorileri ekle.
-5. Çıkarımlar: `estimated_salary_range` (meslekten) ve `lifestyle_notes` (hobilerden) alanlarını doldur.
+2. **Soyisim (surname)**: Kullanıcı "Ali Yılmaz" dediyse Yılmaz'ı soyisim olarak al. Hiç verilmediyse `null` bırak.
+3. **Medeni Durum (marital_status)**: "evleneceğim", "nişanlıyım" gibi ifadeleri "evli/nişanlı" kategorisine yönlendir. 
+4. **Bütçe ve Oda**: Rakamları netleştir. "6 milyon" -> 6000000.
+5. **Lokasyon Ayrımı**: 
+   - `current_city`: Şu an yaşadığı şehir/ilçe (Örn: "Şişli'de oturuyorum") -> Bu zorunlu alandır.
+   - `location`: Ev almak istediği yer (Örn: "Beşiktaş tarafı düşünüyorum")
+6. 'answered_categories' listesine, mesajda cevabı bulunan kategorileri ekle.
+7. Çıkarımlar: `estimated_salary_range` (meslekten) ve `lifestyle_notes` (hobilerden) alanlarını doldur.
 
-Cevap formatı kesinlikle JSON olmalıdır. Boş kalan yerleri `null` yap. kategoriler: name, budget, location, rooms, profession, hometown, marital_status, has_children, hobbies, etc."""
+Cevap formatı kesinlikle JSON olmalıdır. Boş kalan yerleri `null` yap. kategoriler: name, surname, budget, location, rooms, profession, hometown, marital_status, has_children, hobbies, etc. email, phone.
+"""
 
         try:
             response = await self.llm_service.generate_structured_response(
@@ -47,11 +52,12 @@ Cevap formatı kesinlikle JSON olmalıdır. Boş kalan yerleri `null` yap. kateg
                     "email": "string or null",
                     "phone": "string or null",
                     "hometown": "string or null",
+                    "current_city": "string or null", # NEW: Where they live now
                     "profession": "string or null",
                     "marital_status": "string or null",
                     "has_children": "boolean or null",
                     "budget": "number or null",
-                    "location": "string or null",
+                    "location": "string or null", # Preferred location
                     "property_type": "string or null",
                     "rooms": "number or null",
                     "hobbies": "array or null",

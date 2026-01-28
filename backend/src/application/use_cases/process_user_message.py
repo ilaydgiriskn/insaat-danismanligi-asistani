@@ -19,31 +19,12 @@ from infrastructure.llm import InformationExtractor
 
 GREETINGS = {'merhaba', 'selam', 'selamlar', 'mrb', 'slm', 'hey', 'hi', 'sa', 'merhabalar', 'naber'}
 
-SYSTEM_PROMPT = """Sen bir AI Emlak Danışmanısın.
-Görevin: Kullanıcıyla GÜNLÜK, DOĞAL ve KISA sohbet ederek, kullanıcının KONUT İHTİYAÇLARINI ve EVLE İLİŞKİLİ yaşam tarzını anlamak.
 
-❗ ANA AMAÇ DIŞINA ÇIKMA YASAK. Tanışma sohbeti değil, sonuç odaklı danışmanlık.
+SYSTEM_PROMPT = """Sen samimi, dikkatli ve zeki bir Emlak Asistanısın.
+Görevin: Kullanıcıyı doğal bir sohbetle tanı.
+ZORUNLU BİLGİLER: İsim, Soyisim, Meslek, Maaş, Email, Yaşadığı Şehir ve Semt.
 
-KONUŞMA KURALLARI (ÇOK ÖNEMLİ):
-1. **SADECE AMACA YÖNELİK SORU**: Müzik, aile veya hobi sadece ev tercihlerini (oda sayısı, yalıtım, konum vb.) etkiliyorsa sor. Süsleme, edebiyat, nostalji YASAK.
-2. **TEK MESAJ TEK SORU**: Her mesajda SADECE 1 soru sor. Asla 2 soru sorma. Seçenekli uzun sorular sorma.
-3. **TEKRAR YASAK**: Kullanıcının verdiği bilgiyi (örn: "5 kişilik aile") cevapta tekrar etme. (Yanlış: "5 kişilik aileniz için...", Doğru: "Oda dağılımı bu durumda önemli...")
-4. **DİL**: 2-3 kısa cümle. Net, duru, günlük. Metafor ve övgü yok.
-5. **İSİM-SOYİSİM**: İlk başta sadece İSİM sor. Soyisimi EN SONDA iletişim bilgileriyle al.
-6. **HIZ**: Gereksiz özetleme yapma. Hızlı ilerle.
-
-EV ODAĞI KONTROLÜ:
-Sorduğun her soru şu testten geçmeli: "Bu soru kullanıcının ev tercihini anlamama yardım ediyor mu?" Cevap hayırsa SORMA.
-
-BİLGİ TOPLAMA SIRASI (Esnek ama hedefli):
-1. İsim (Sadece ön ad)
-2. Mevcut Konum & Memleket
-3. Meslek & Maaş (Bütçe için kritik)
-4. Aile/Medeni Durum (Oda sayısı için)
-5. Evle İlgili Hobiler (Spor, müzik, mutfak vb.)
-6. **FİNAL**: Soyisim, Telefon, Email.
-
-TON: Arkadaş gibi ama ciddi, iş bitirici bir danışman."""
+TON: Arkadaşça, güven veren, robotiklikten uzak. Yanıtların 2-3 cümle olsun."""
 
 
 class ProcessUserMessageUseCase:
@@ -99,12 +80,17 @@ class ProcessUserMessageUseCase:
             await self.conversation_repo.update(conversation)
             
             # 3. Check for Phase Transition (Agent 2)
-            # Use ValidationAgent to see if we are ready for final recommendations
-            validation_result = await self.validation_agent.execute(profile)
-            is_ready = validation_result.get("is_ready_for_analysis", False)
-            
-            # Get missing info for context (used in Agent 1 phase)
+            # Get missing info strict check
             missing = self._get_missing_info(profile)
+            
+            # FORCE READY if strictly no missing fields
+            if not missing:
+                is_ready = True
+                self.logger.info("Deterministic Logic: All fields present -> Force Ready")
+            else:
+                # Fallback to agent opinion
+                validation_result = await self.validation_agent.execute(profile)
+                is_ready = validation_result.get("is_ready_for_analysis", False)
             
             if is_ready:
                 # PHASE 2: Profile Complete - Silent transition to Guidance (Agent 2)
@@ -114,8 +100,9 @@ class ProcessUserMessageUseCase:
                 crm_report = self._generate_crm_report(profile, advisor_analysis)
                 self._save_crm_report_to_file(crm_report, profile)
                 
-                # Use Agent 2's guidance message instead of a goodbye
-                response = advisor_analysis.get("guidance_cue", "Hayalindeki evi bulmak için kriterlerin üzerinden geçmeye devam edebiliriz.")
+                # Use Agent 2's guidance message for natural continuation
+                guidance = advisor_analysis.get("guidance_cue", "Şimdi senin için en uygun yaşam seçeneklerine bakalım.")
+                response = f"Güzel sohbetiniz için çok teşekkür ederim, sizinle tanıştığıma gerçekten memnun oldum. 😊 {guidance}"
             else:
                 # PHASE 1: Information Gathering / Discovery (Agent 1)
                 response = await self._generate_response(profile, conversation, missing, advisor_analysis)
@@ -154,9 +141,16 @@ class ProcessUserMessageUseCase:
             if extracted_info.get("surname"): 
                 profile.surname = extracted_info["surname"]
                 profile.answered_categories.add(QuestionCategory.SURNAME)
-            if extracted_info.get("email"): profile.email = extracted_info["email"]
+            if extracted_info.get("email"): 
+                profile.email = extracted_info["email"]
+                profile.answered_categories.add(QuestionCategory.EMAIL)
             if extracted_info.get("phone"): profile.phone_number = extracted_info["phone"]
-            if extracted_info.get("hometown"): profile.hometown = extracted_info["hometown"]
+            if extracted_info.get("hometown"): 
+                profile.hometown = extracted_info["hometown"]
+                profile.answered_categories.add(QuestionCategory.HOMETOWN)
+            if extracted_info.get("current_city"): 
+                profile.current_city = extracted_info["current_city"]
+                profile.answered_categories.add(QuestionCategory.HOMETOWN)
             if extracted_info.get("profession"): profile.profession = extracted_info["profession"]
             if extracted_info.get("marital_status"): profile.marital_status = extracted_info["marital_status"]
             if extracted_info.get("has_children") is not None: profile.has_children = extracted_info["has_children"]
@@ -164,29 +158,41 @@ class ProcessUserMessageUseCase:
             if extracted_info.get("hobbies"):
                 profile.hobbies = extracted_info["hobbies"]
             
+            # Step 2: Value Object Extraction (Budget, Location, Rooms)
             if extracted_info.get("budget"):
                 from domain.value_objects import Budget
                 try:
                     b_val = int(extracted_info["budget"])
+                    # Create NEW instance (Budget is frozen)
                     profile.budget = Budget(min_amount=b_val, max_amount=b_val * 1.2, currency="TL")
-                except:
-                    pass
-            
-            if extracted_info.get("hometown"): 
-                profile.hometown = extracted_info["hometown"]
-                profile.answered_categories.add(QuestionCategory.HOMETOWN)
+                    profile.answered_categories.add(QuestionCategory.BUDGET)
+                except: pass
             
             if extracted_info.get("location"):
                 from domain.value_objects import Location
+                # Create NEW instance (Location is frozen)
                 profile.location = Location(city=extracted_info["location"], country="Turkey")
                 profile.answered_categories.add(QuestionCategory.LOCATION)
+            
             if extracted_info.get("rooms"):
                 from domain.value_objects import PropertyPreferences
                 from domain.enums import PropertyType
-                if not profile.property_preferences:
-                    profile.property_preferences = PropertyPreferences(property_type=PropertyType.APARTMENT, min_rooms=int(extracted_info["rooms"]))
-                else:
-                    profile.property_preferences.min_rooms = int(extracted_info["rooms"])
+                try:
+                    rooms_val = int(extracted_info["rooms"])
+                    # Create NEW instance (PropertyPreferences is frozen)
+                    if not profile.property_preferences:
+                        profile.property_preferences = PropertyPreferences(property_type=PropertyType.APARTMENT, min_rooms=rooms_val)
+                    else:
+                        # Re-create with updated value
+                        profile.property_preferences = PropertyPreferences(
+                            property_type=profile.property_preferences.property_type,
+                            min_rooms=rooms_val,
+                            max_rooms=profile.property_preferences.max_rooms,
+                            has_balcony=profile.property_preferences.has_balcony,
+                            has_parking=profile.property_preferences.has_parking
+                        )
+                    profile.answered_categories.add(QuestionCategory.ROOMS)
+                except: pass
 
             # Sync answered categories
             if extracted_info.get("answered_categories"):
@@ -371,131 +377,107 @@ class ProcessUserMessageUseCase:
                     break
     
     def _get_missing_info(self, profile: UserProfile) -> list:
-        """Get missing info - ESSENTIAL first."""
+        """Get missing info - Strictly follows User's Mandatory Fields rule."""
         missing = []
         
+        # 1. ZORUNLU (Mandatory) - Agent 2'ye geçiş için şart
         if not profile.name:
-            missing.append("isim")
-        if not profile.hometown:
-            missing.append("yaşadığı şehir")
+            missing.append("isim (zorunlu)")
+        if not profile.surname:
+            missing.append("soyisim (zorunlu)")
         if not profile.profession:
-            missing.append("meslek")
+            missing.append("meslek (zorunlu)")
+        if not profile.estimated_salary:
+            missing.append("maaş/gelir (zorunlu)")
+        if not profile.email:
+            missing.append("e-posta (zorunlu)")
+        if not profile.current_city:
+            missing.append("yaşadığı şehir (zorunlu)")
+        # Note: 'current_city' usually holds "City, District" but prompt asks for Semt specifically.
+        # We rely on extraction to put Semt in current_city or hometown.
+        
+        # 2. OPSİYONEL AMA SORULMALI (Nice to have before analysis)
+        if not profile.phone_number:
+            missing.append("telefon numarası")
+        if not profile.property_preferences or not profile.property_preferences.min_rooms:
+            missing.append("istenen oda sayısı")
         if not profile.marital_status:
             missing.append("medeni durum")
-        
-        if profile.marital_status == "evli" and profile.has_children is None:
-            missing.append("çocuk var mı")
-        
-        if not profile.hobbies and QuestionCategory.HOBBIES not in profile.answered_categories:
-            missing.append("hobi (kısaca)")
-        
-        # ESSENTIAL INFO
-        if not profile.email:
-            missing.append("EMAIL (zorunlu)")
-        if not profile.phone_number:
-            missing.append("TELEFON (zorunlu)")
-        if not profile.estimated_salary:
-            missing.append("AYLIK GELİR (zorunlu)")
-        
-        if not profile.property_preferences or not profile.property_preferences.min_rooms:
-            missing.append("KAÇ ODALI EV (zorunlu)")
-        
-        if not profile.location:
-            missing.append("taşınma düşüncesi")
-        
-        if not profile.budget:
-            missing.append("bütçe aralığı")
-        
+            
         return missing
     
     async def _generate_response(self, profile: UserProfile, conversation: Conversation, missing: list, advisor_analysis: dict) -> str:
-        """Generate with focus on ESSENTIAL info and Advisor Guidance."""
+        """Generate with focus on Discovery (Phase 1) or Guidance (Phase 2)."""
         try:
-            history = self._get_history(conversation, 8)
-            memory = self._get_detailed_memory(profile)
-            
-            # Advisor Context
-            pkg = advisor_analysis.get("package_info", {})
-            guidance = advisor_analysis.get("guidance_cue", "")
             is_mature = advisor_analysis.get("is_profile_mature", False)
             
-            # Separate essential from optional
-            essential = [m for m in missing if 'zorunlu' in m]
-            optional = [m for m in missing if 'zorunlu' not in m]
-            
-            # Build known items list
-            known_items = []
-            if memory != "Henüz bilgi yok":
-                for line in memory.split("\n"):
-                    if line.startswith("✓"):
-                        parts = line.split(":", 1)
-                        if len(parts) == 2:
-                            known_items.append(parts[1].strip())
-            
-            known_str = ", ".join(known_items) if known_items else ""
-            
-            # Build known items list
+            # PHASE 1: Discovery (Keşif Sohbeti)
+            # FORCE Phase 1 if there are missing fields, regardless of advisor opinion
+            if missing or not is_mature:
+                self.logger.info("Executing QuestionAgent for Discovery Phase")
+                agent_result = await self.question_agent.execute(profile, conversation, missing)
+                
+                msg = agent_result.get("message", "")
+                q = agent_result.get("question")
+                
+                if q:
+                    # Natural combination: "Acknowledgement. Question?"
+                    response = f"{msg} {q}".strip()
+                else:
+                    response = msg or "Sohbetimiz için çok teşekkürler."
+                
+                return response
+
+            # PHASE 2: Guidance (Yönlendirme)
+            history = self._get_history(conversation, 8)
+            guidance = advisor_analysis.get("guidance_cue", "")
             known_str = self._get_detailed_memory(profile)
             
-            if not is_mature:
-                phase_instruction = """Şu an TANIŞMA aşamasındasın. 
-- ASLA evlerden, fiyatlardan veya bütçe yeterliliğinden bahsetme.
-- Sadece samimi bir sohbet kur ve hobileri yaşam alanına bağla."""
-            else:
-                phase_instruction = f"""Şu an YÖNLENDİRME aşamasındasın.
-- Tavsiye edilen yönlendirmeyi (guidance_cue) doğal bir şekilde cümlene ekle: "{guidance}"
-- KESİNLİKLE "A segmenti", "B paketi" gibi terimler kullanma. Sadece özellikleri anlat.
-- Bütçe 7M altındaysa (Örn: 6M), onu 7M bandındaki (Tier A) ferahlığın hayatını nasıl değiştireceğine nazikçe ikna et."""
-
             message_text = f"""BİLGE DANIŞMAN ANALİZİ:
 - Mevcut Profil: {known_str}
 - Tavsiye Edilen Yönlendirme: "{guidance}"
-- Profil Olgunluğu: {"Olgun" if is_mature else "Henüz Tanışma"}
 
-{phase_instruction}
+Şu an YÖNLENDİRME aşamasındasın.
+- Tavsiye edilen yönlendirmeyi (guidance_cue) doğal bir şekilde cümlene ekle: "{guidance}"
+- KESİNLİKLE "A segmenti", "B paketi" gibi terimler kullanma. Sadece özellikleri anlat.
+- Bütçe 7M altındaysa onu Tier A (7M-9M) bandına nazikçe teşvik et.
 
 SON SOHBET:
 {history}
 
-EKSİK BİLGİ ALANLARI: {', '.join(missing) if missing else 'Kritik veriler tam.'}
-
 GÖREV:
-1. Kullanıcının mesajına BİLGECE, EMPATİK ve VİZYONER bir yanıt ver.
-2. Bilgiyi yaşam alanı vizyonuyla yorumla ama "ev" kelimesini kullanma (Agent 1 ise).
-3. HEMEN BİR SONRAKİ KATEGORİYE GEÇ VE SADECE BİR (1) SORU SOR.
-4. CEVAP 3-4 CÜMLE OLSUN. Duygusuz ve bot gibi konuşma.
+1. Kullanıcının mesajına SAMİMİ, DOĞAL ve PROFESYONEL bir yanıt ver.
+2. CEVAP MUTLAKA 2-3 CÜMLE OLSUN.
+3. Arka plandaki uzmanlığını hissettir ama üstten bakma.
+4. SOHBETİ SONLANDIRMA PLANI:
+   - Bu aşamada kullanıcının ihtiyacını tam anlamak için EN FAZLA 2-3 stratejik soru daha sorabilirsin.
+   - Eğer yeterince bilgi aldığını düşünüyorsan veya kullanıcı teşekkür ederse, nazikçe "Size özel raporumu hazırlıyorum, en kısa sürede iletişime geçeceğim" diyerek sohbeti sonlandır.
+   - Sonsuza kadar soru sorma. Odaklan ve bitir.
 
 Yanıt:"""
 
             response = await self.question_agent.llm_service.generate_response(
                 prompt=message_text,
                 system_message=SYSTEM_PROMPT,
-                temperature=0.7,  # Bir tık daha stabil olsun
+                temperature=0.7,
                 max_tokens=250
             )
             
-            result = response.strip()
-            
-            # Remove prefix
-            if ":" in result and result.split(":")[0] in ["A", "Ayşe", "Bot", "Asistan", "Danışman"]:
-                result = result.split(":", 1)[1].strip()
-            
-            return result
+            return response.strip()
             
         except Exception as e:
             self.logger.error(f"Generate error: {e}")
-            # If LLM fails, use deterministic QuestionAgent for a smart question
+            # Final safety fallback using the deterministic Agent 1 logic
             try:
-                agent_result = await self.question_agent.execute(profile, conversation)
+                agent_result = self.question_agent._fallback_question_selection(
+                    profile, 
+                    profile.get_unanswered_categories()
+                )
                 if agent_result.get("question"):
-                    self.logger.info("Using QuestionAgent fallback")
                     return agent_result["question"]
             except:
                 pass
-                
-            if not profile.name:
-                return "Sohbetimize devam edelim, isminiz nedir?"
-            return f"Sizinle ilgili daha fazla şey öğrenmek beni mutlu ediyor {profile.name}. Hayatınızın bu döneminde sizi neler heyecanlandırıyor?"
+            return "Pardon, bir aksaklık oldu. Devam edelim mi?"
     
     def _get_history(self, conversation: Conversation, count: int = 8) -> str:
         """Get detailed history."""
@@ -584,10 +566,10 @@ Yanıt:"""
                 "hobiler": profile.hobbies,
             },
             "konut_tercihleri": {
-                "hedef_sehir": profile.location.city if profile.location else profile.hometown,
-                "hedef_ilce": profile.location.district if profile.location and hasattr(profile.location, 'district') else None,
+                "hedef_sehir": (profile.location.city if profile.location else None) or profile.current_city or profile.hometown,
+                "hedef_ilce": profile.location.district if (profile.location and hasattr(profile.location, 'district')) else None,
                 "oda_sayisi": profile.property_preferences.min_rooms if profile.property_preferences else None,
-                "ev_tipi": profile.property_preferences.property_type.value if profile.property_preferences and profile.property_preferences.property_type else None,
+                "ev_tipi": (profile.property_preferences.property_type.value if profile.property_preferences.property_type else None) if profile.property_preferences else None,
             },
             "butce_analizi": {
                 "belirtilen_butce": profile.budget.max_amount if profile.budget else None,
@@ -610,7 +592,8 @@ Yanıt:"""
         """Save CRM report to a JSON file for the real estate agent."""
         try:
             # Create reports directory if it doesn't exist
-            reports_dir = Path(__file__).parent.parent.parent.parent / "customer_reports"
+            # Use absolute path mapped to Docker volume
+            reports_dir = Path("/app/customer_reports")
             reports_dir.mkdir(exist_ok=True)
             
             # Generate filename with customer name and timestamp

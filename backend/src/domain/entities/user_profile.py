@@ -28,6 +28,7 @@ class UserProfile:
     email: Optional[str] = None
     phone_number: Optional[str] = None
     hometown: Optional[str] = None
+    current_city: Optional[str] = None
     profession: Optional[str] = None
     marital_status: Optional[str] = None
     has_children: Optional[bool] = None
@@ -97,16 +98,22 @@ class UserProfile:
     
     def is_complete(self) -> bool:
         """
-        Check if profile has the 6 mandatory fields for Agent 2 transition.
-        Mandatory: name, surname, profession, estimated_salary, email, location.city
+        Check if profile has the MANDATORY fields for Agent 2 transition.
+        Mandatory per user request:
+        1. Name (İsim)
+        2. Surname (Soyisim)
+        3. Profession (Meslek)
+        4. Salary (Maaş)
+        5. Email (Mail)
+        6. Current City/District (Yaşadığı yer/semt)
         """
         has_mandatory = bool(
             self.name and 
             self.surname and 
             self.profession and 
             self.estimated_salary and 
-            self.email and 
-            (self.location and self.location.city)
+            self.email and
+            self.current_city
         )
         return has_mandatory
     

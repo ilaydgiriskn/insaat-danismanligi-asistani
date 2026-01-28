@@ -15,28 +15,68 @@ class QuestionAgent(BaseAgent):
         self,
         user_profile: UserProfile,
         conversation: Conversation,
+        missing_info: list[str] = None
     ) -> dict:
-        """Select next question based on missing profile information."""
+        """Select next question using LLM based on user profile and history."""
         try:
-            self._log_execution("Selecting next question")
+            self._log_execution("Generating discovery question via LLM")
             
-            # Get unanswered categories
-            unanswered = user_profile.get_unanswered_categories()
+            # Get context
+            history = self._get_history_text(conversation)
+            system_msg = self.prompt_manager.get_system_message("question")
             
-            if not unanswered:
-                return {
-                    "question": None,
-                    "category": None,
-                    "message": "All categories answered"
+            # Prepare detailed profile state
+            profile_summary = self._get_profile_summary(user_profile)
+            missing_str = ", ".join(missing_info) if missing_info else "Bilinmiyor"
+            
+            user_msg = f"""MEVCUT BİLGİLER:
+{profile_summary}
+
+EKSİK BİLGİLER: {missing_str}
+
+KONUŞMA GEÇMİŞİ (Sondan başa doğru):
+{history}
+
+GÖREV: Yukarıdaki kurallara göre doğal bir sonraki soruyu veya kapanış cümlesini seç."""
+
+            # Use structured response for the requested JSON format
+            result = await self.llm_service.generate_structured_response(
+                prompt=user_msg,
+                system_message=system_msg,
+                response_format={
+                    "question": "string or null",
+                    "category": "string or null",
+                    "message": "string or null"
                 }
+            )
             
-            # Use deterministic fallback
-            return self._fallback_question_selection(user_profile, unanswered)
+            return result
             
         except Exception as e:
             self._log_error(e)
+            # True fallback to deterministic method if LLM fails
             unanswered = user_profile.get_unanswered_categories()
             return self._fallback_question_selection(user_profile, unanswered)
+
+    def _get_history_text(self, conversation: Conversation, count: int = 5) -> str:
+        """Get recent history as text - chronological."""
+        messages = conversation.messages[-count:]
+        history_parts = []
+        for msg in messages:
+            role = "Kullanıcı" if msg.role == "user" else "Asistan"
+            history_parts.append(f"{role}: {msg.content}")
+        return "\n".join(history_parts)
+
+    def _get_profile_summary(self, profile: UserProfile) -> str:
+        """Get brief summary of what we know."""
+        parts = []
+        if profile.name: parts.append(f"- İsim: {profile.name}")
+        if profile.surname: parts.append(f"- Soyisim: {profile.surname}")
+        if profile.profession: parts.append(f"- Meslek: {profile.profession}")
+        if profile.current_city: parts.append(f"- Yaşadığı Yer: {profile.current_city}")
+        if profile.email: parts.append(f"- Email: {profile.email}")
+        if profile.estimated_salary: parts.append(f"- Gelir: {profile.estimated_salary}")
+        return "\n".join(parts) if parts else "Hiçbir bilgi yok."
     
     def _fallback_question_selection(
         self,
@@ -45,22 +85,19 @@ class QuestionAgent(BaseAgent):
     ) -> dict:
         """Deterministic question selection - no LLM, predictable order."""
         
-        # Priority order (NAME is captured from first message)
+        # Priority order (New requirements)
         priority = [
-            QuestionCategory.EMAIL,
-            QuestionCategory.HOMETOWN,
+            QuestionCategory.NAME,
+            QuestionCategory.SURNAME,
             QuestionCategory.PROFESSION,
-            QuestionCategory.MARITAL_STATUS,
-            QuestionCategory.CHILDREN,
-            QuestionCategory.BUDGET,
+            QuestionCategory.ESTIMATED_SALARY,
+            QuestionCategory.EMAIL,
+            QuestionCategory.HOMETOWN, # Living place/current city
             QuestionCategory.LOCATION,
-            QuestionCategory.PROPERTY_TYPE,
             QuestionCategory.ROOMS,
-            QuestionCategory.FAMILY_SIZE,
-            QuestionCategory.SALARY,
+            QuestionCategory.MARITAL_STATUS,
             QuestionCategory.HOBBIES,
-            QuestionCategory.PETS,
-            QuestionCategory.PHONE,
+            QuestionCategory.PHONE_NUMBER,
         ]
         
         for category in priority:
@@ -69,6 +106,7 @@ class QuestionAgent(BaseAgent):
                 return {
                     "question": question,
                     "category": category.value,
+                    "message": "Anladım.",
                     "reasoning": "Priority-based selection"
                 }
         
@@ -94,76 +132,57 @@ class QuestionAgent(BaseAgent):
         connector = random.choice(connectors)
         
         questions = {
-            QuestionCategory.NAME: "Sizi hangi isimle tanıyabilirim?",
+            QuestionCategory.NAME: "Memnun oldum! Sizi hangi isimle tanıyabilirim?",
+            QuestionCategory.SURNAME: f"Memnun oldum {name}! Soyadınızı da öğrenebilir miyim?",
             
             QuestionCategory.EMAIL: [
-                f"Sizinle vizyoner paylaşımlar yapabileceğimiz bir mektup kutunuz (E-posta) var mı {name}?",
-                f"Güzel tanıştığımıza {name}! Size özel notlar iletebileceğim bir adresiniz var mı?",
+                f"Harika {name}. Sizinle iletişimde kalabilmemiz için e-posta adresinizi paylaşır mısınız?",
+                f"Teşekkürler {name}. Mail adresinizi de alabilir miyim acaba?",
             ],
             
-            QuestionCategory.PHONE: [
-                f"{connector}, sizinle sesli veya anlık iletişim kurabileceğimiz bir numaranız var mı?",
-                "Size ulaşabileceğim en doğru irtibat numarası nedir?",
+            QuestionCategory.PHONE_NUMBER: [
+                "Size hızlıca ulaşabileceğimiz bir telefon numaranız var mı?",
+                "Sizinle irtibatta kalmak adına telefon numaranızı da rica etsem paylaşır mısınız?",
             ],
             
             QuestionCategory.HOMETOWN: [
-                f"{connector} {name}, kökleriniz hangi şehrin topraklarında, merak ettim?",
-                f"Hangi rüzgarın estiği diyarlardan geliyorsunuz {name}?",
+                f"Anladım {name}. Peki, şu an hangi şehir ve semtte oturuyorsunuz?",
+                f"{name}, şu an yaşadığınız yer neresi acaba (şehir/ilçe)?",
             ],
             
             QuestionCategory.PROFESSION: [
-                f"{connector}, zamanınızı hangi değerleri üreterek geçiriyorsunuz {name}?",
-                "Hangi uzmanlık alanı sizin tutkunuz oldu?",
+                "Çok güzel. Ne ile meşgulsünüz, mesleğiniz nedir acaba?",
+                "Anladım. Hangi işle meşgul olduğunuzu da öğrenebilir miyim?",
             ],
             
             QuestionCategory.MARITAL_STATUS: [
-                "Hayatın bu yolculuğuna tek başınıza mı yoksa değerli bir yol arkadaşıyla mı devam ediyorsunuz?",
-                "Yaşam alanınızı kiminle paylaşma hayali kuruyorsunuz?",
+                "Sizin için en uygun evi bakarken, medeni durumunuzu da sorsam sorun olur mu? (Evli/Bekar vb.)",
+                "Yaşam alanınızı kiminle paylaşacaksınız, aile durumu nedir acaba?",
             ],
             
-            QuestionCategory.CHILDREN: [
-                "Küçük kahkahaların yükseldiği bir yuva mı hayaliniz, yoksa daha dingin bir hayat mı?",
-                "Ailenizde sizi geleceğe bağlayan minik üyeler var mı?",
-            ],
-            
-            QuestionCategory.SALARY: [
-                f"{connector}, yaşam standartlarınız için ayırdığınız tahmini pay ne kadardır?",
-                "Konforlu bir gelecek için aylık harcama vizyonunuzu nasıl tanımlarsınız?",
+            QuestionCategory.ESTIMATED_SALARY: [
+                "Bütçenize en uygun seçenekleri sunabilmem için aylık ortalama gelirinizi paylaşır mısınız?",
+                "Size daha doğru önerilerde bulunmak adına, yaklaşık aylık kazancınızı da öğrenebilir miyim?",
             ],
             
             QuestionCategory.HOBBIES: [
-                f"Ruhunuzu en çok hangi uğraşlar dinlendiriyor {name}?",
-                "Hangi tutkular sizi hayata daha sıkı bağlar?",
-            ],
-            
-            QuestionCategory.PETS: [
-                "Sadık bir dostla (evcil hayvan) paylaşılan bir hayatın huzuru sizin için ne ifade eder?",
-                "Evinizde patili bir dostun enerjisi olsun ister miydiniz?",
+                f"Harika {name}. Evde zaman geçirirken yapmaktan en çok keyif aldığınız hobileriniz nelerdir?",
+                f"Sizin için evde olmazsa olmaz bir hobi alanı gerekir mi, nelerle ilgilenirsiniz?",
             ],
             
             QuestionCategory.BUDGET: [
-                f"Hayallerinizi somutlaştırmak için ayırdığınız o kıymetli maddi kaynak yaklaşık ne kadardır {name}?",
-                f"Konforunuzun finansal sınırlarını nasıl çizersiniz {name}?",
+                "Ev için ayırmayı düşündüğünüz bütçe aralığı yaklaşık nedir?",
+                "Finansal olarak hangi bütçe aralığında seçeneklere bakmak istersiniz?",
             ],
             
             QuestionCategory.LOCATION: [
-                f"Gözlerinizi her sabah hangi şehrin ışığına açmak istersiniz {name}?",
-                "Tercih ettiğiniz iklim veya sahil kasabası hayaliniz var mı?",
-            ],
-            
-            QuestionCategory.PROPERTY_TYPE: [
-                "Gökyüzüne yakın bir rezidans mı, yoksa toprağa dokunan bir bahçeli yaşam mı size hitap ediyor?",
-                f"Sizin ruhunuza hangi mimari doku iyi geliyor {name}?",
+                "Ev almak istediğiniz, hayalinizdeki o özel semt veya bölge neresi?",
+                "Hangi lokasyonlarda kendinizi daha mutlu ve huzurlu hissedersiniz?",
             ],
             
             QuestionCategory.ROOMS: [
-                "Sessizliği dinleyebileceğiniz veya sevdiklerinizi ağırlayabileceğiniz genişliği nasıl hayal edersiniz?",
-                "Yaşam alanınızın ferahlığı kaç odada hayat bulmalı?",
-            ],
-            
-            QuestionCategory.FAMILY_SIZE: [
-                f"Bu vizyonu kaç kişilik bir toplulukla paylaşmayı düşünüyorsunuz {name}?",
-                "Ferahlığın tanımı sizin kalabalığınız için nedir?",
+                "Kaç oda, kaç salon bir ev sizin için ideal olur?",
+                "Evde kaç odalı bir plana ihtiyacınız var?",
             ],
         }
         

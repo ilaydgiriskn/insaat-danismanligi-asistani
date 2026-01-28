@@ -85,9 +85,11 @@ class SQLAlchemyUserRepository(IUserRepository):
             created_at=entity.created_at,
             updated_at=entity.updated_at,
             name=entity.name,
+            surname=entity.surname,
             email=entity.email,
             phone_number=entity.phone_number,
             hometown=entity.hometown,
+            current_city=entity.current_city,
             profession=entity.profession,
             marital_status=entity.marital_status,
             has_children=entity.has_children,
@@ -124,9 +126,11 @@ class SQLAlchemyUserRepository(IUserRepository):
         model.session_id = entity.session_id
         model.updated_at = entity.updated_at
         model.name = entity.name
+        model.surname = entity.surname
         model.email = entity.email
         model.phone_number = entity.phone_number
         model.hometown = entity.hometown
+        model.current_city = entity.current_city
         model.profession = entity.profession
         model.marital_status = entity.marital_status
         model.has_children = entity.has_children
@@ -212,9 +216,11 @@ class SQLAlchemyUserRepository(IUserRepository):
             created_at=model.created_at,
             updated_at=model.updated_at,
             name=model.name,
+            surname=model.surname,
             email=model.email,
             phone_number=model.phone_number,
             hometown=model.hometown,
+            current_city=model.current_city,
             profession=model.profession,
             marital_status=model.marital_status,
             has_children=model.has_children,

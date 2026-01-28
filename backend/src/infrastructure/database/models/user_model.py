@@ -44,9 +44,11 @@ class UserModel(Base):
     
     # User information
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    surname: Mapped[str | None] = mapped_column(String(255), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     phone_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
     hometown: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    current_city: Mapped[str | None] = mapped_column(String(255), nullable=True)
     profession: Mapped[str | None] = mapped_column(String(255), nullable=True)
     marital_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     has_children: Mapped[bool | None] = mapped_column(Boolean, nullable=True)

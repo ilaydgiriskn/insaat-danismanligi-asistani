@@ -19,6 +19,8 @@ async def apply_fix():
         ("has_children", "boolean"),
         ("estimated_salary", "character varying(255)"),
         ("hobbies", "json"),
+        ("surname", "character varying(255)"),
+        ("current_city", "character varying(255)"),
         ("lifestyle_notes", "character varying"),
     ]
     

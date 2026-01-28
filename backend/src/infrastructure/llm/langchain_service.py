@@ -36,22 +36,15 @@ class LangChainService(ILLMService):
         """Generate a response from the LLM."""
         try:
             messages = []
-            
             if system_message:
                 messages.append(SystemMessage(content=system_message))
             
             messages.append(HumanMessage(content=prompt))
             
-            # Create LLM with custom parameters
-            llm = ChatOpenAI(
-                model=self.settings.openai_model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                openai_api_key=self.settings.openai_api_key,
-                base_url=self.settings.openai_base_url,
-            )
-            
-            response = await llm.ainvoke(messages)
+            # Use the existing LLM instance for consistency
+            # Note: temperature and max_tokens are set at the LLM instance level in __init__
+            # If you need to override them per call, you would pass them to ainvoke or re-initialize LLM
+            response = await self.llm.ainvoke(messages)
             
             return response.content
             
