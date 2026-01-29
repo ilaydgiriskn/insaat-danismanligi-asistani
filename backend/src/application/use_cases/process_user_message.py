@@ -14,7 +14,9 @@ from domain.entities import UserProfile, Conversation
 from domain.repositories import IUserRepository, IConversationRepository
 from domain.enums import QuestionCategory
 from infrastructure.config import get_logger
+from infrastructure.config import get_logger
 from infrastructure.llm import InformationExtractor
+from infrastructure.reporting.pdf_generator import PDFReportGenerator
 
 
 GREETINGS = {'merhaba', 'selam', 'selamlar', 'mrb', 'slm', 'hey', 'hi', 'sa', 'merhabalar', 'naber'}
@@ -93,16 +95,28 @@ class ProcessUserMessageUseCase:
                 is_ready = validation_result.get("is_ready_for_analysis", False)
             
             if is_ready:
-                # PHASE 2: Profile Complete - Silent transition to Guidance (Agent 2)
-                self.logger.info(f"Profile complete for {profile.name} {profile.surname}. Transitioning to Guidance.")
+                # PHASE 2: Profile Complete
                 
-                # CRM EXPORT: Silent background report
-                crm_report = self._generate_crm_report(profile, advisor_analysis)
-                self._save_crm_report_to_file(crm_report, profile)
+                # Check if we ALREADY transitioned (to avoid infinite loop)
+                last_msg = conversation.get_last_assistant_message()
+                transition_phrase = "Raporunuz hazırlanıyor"
                 
-                # Use Agent 2's guidance message for natural continuation
-                guidance = advisor_analysis.get("guidance_cue", "Şimdi senin için en uygun yaşam seçeneklerine bakalım.")
-                response = f"Güzel sohbetiniz için çok teşekkür ederim, sizinle tanıştığıma gerçekten memnun oldum. 😊 {guidance}"
+                if last_msg and transition_phrase in last_msg.content:
+                    # Already transitioned -> Session Closed
+                    self.logger.info("Session already closed.")
+                    response = "Bütün bilgileriniz alınmıştır. Raporunuz e-posta adresinize gönderilecektir. Teşekkürler! 👋"
+                    
+                else:
+                    # FIRST TIME Transition -> FINAL CLOSING
+                    self.logger.info(f"Closing Session for: {profile.name}")
+                    
+                    # CRM EXPORT: Silent background report
+                    crm_report = self._generate_crm_report(profile, advisor_analysis)
+                    self._save_crm_report_to_file(crm_report, profile)
+                    
+                    # Final Closing Message - No more questions!
+                    response = f"Harika! Tüm gerekli bilgileri not ettim. 📝\n\nRaporunuz hazırlanıyor ve en kısa sürede e-posta adresinize iletilecek.\n\nBize vakit ayırdığınız için teşekkürler, iyi günler dilerim! 👋"
+
             else:
                 # PHASE 1: Information Gathering / Discovery (Agent 1)
                 response = await self._generate_response(profile, conversation, missing, advisor_analysis)
@@ -135,10 +149,13 @@ class ProcessUserMessageUseCase:
                 return
 
             # Map fields to UserProfile
-            if extracted_info.get("name"): 
+            # Map fields to UserProfile
+            # PROTECT NAME: Only set if None (First correct name sticks)
+            if extracted_info.get("name") and not profile.name: 
                 profile.name = extracted_info["name"]
                 profile.answered_categories.add(QuestionCategory.NAME)
-            if extracted_info.get("surname"): 
+            
+            if extracted_info.get("surname") and not profile.surname: 
                 profile.surname = extracted_info["surname"]
                 profile.answered_categories.add(QuestionCategory.SURNAME)
             if extracted_info.get("email"): 
@@ -206,8 +223,17 @@ class ProcessUserMessageUseCase:
             # Update lifestyle notes and salary info
             if extracted_info.get("lifestyle_notes"):
                 profile.lifestyle_notes = extracted_info["lifestyle_notes"]
-            if extracted_info.get("estimated_salary_range"):
-                profile.estimated_salary = extracted_info["estimated_salary_range"]
+            
+            # Map monthly_income (number) to estimated_salary (str)
+            if extracted_info.get("monthly_income"):
+                profile.estimated_salary = str(extracted_info["monthly_income"])
+                profile.answered_categories.add(QuestionCategory.ESTIMATED_SALARY)
+            
+            # Update purchase_budget if explicitly provided
+            if extracted_info.get("purchase_budget"):
+                 # Create budget object logic here if needed, or update if existing
+                 pass # Budget update is complex, handled by value object logic if needed. 
+                 # For now, let's just note it. The Budget value object logic is separate.
 
         except Exception as e:
             self.logger.error(f"Error in _update_profile_from_message: {str(e)}", exc_info=True)
@@ -417,12 +443,15 @@ class ProcessUserMessageUseCase:
                 self.logger.info("Executing QuestionAgent for Discovery Phase")
                 agent_result = await self.question_agent.execute(profile, conversation, missing)
                 
-                msg = agent_result.get("message", "")
-                q = agent_result.get("question")
+                msg = agent_result.get("message", "").strip()
+                q = agent_result.get("question", "").strip()
                 
                 if q:
-                    # Natural combination: "Acknowledgement. Question?"
-                    response = f"{msg} {q}".strip()
+                    # Defensive check: If question is already in message (case-insensitive), don't append it again
+                    if q.lower() in msg.lower():
+                        response = msg
+                    else:
+                        response = f"{msg} {q}"
                 else:
                     response = msg or "Sohbetimiz için çok teşekkürler."
                 
@@ -583,6 +612,9 @@ Yanıt:"""
                 "risk_istahi": user_analysis.get("risk_appetite", "orta"),
                 "satin_alma_motivasyonu": user_analysis.get("purchase_motivation", "yasam"),
                 "satin_alma_zamani": user_analysis.get("purchase_timeline", "belirsiz"),
+                "ozet": structured.get("summary", ""),
+                "tavsiyeler": structured.get("recommendations", []),
+                "dikkat_noktalari": structured.get("key_considerations", []),
                 "yasam_tarzi_notlari": structured.get("lifestyle_insights", []) if structured else [],
             },
             "status": "PROFIL_TAMAMLANDI_EMLAKCIYA_GONDERILDI"
@@ -602,13 +634,21 @@ Yanıt:"""
             filename = f"{customer_name}_{timestamp}.json"
             filepath = reports_dir / filename
             
-            # Write report to file
+            # Write report to file (JSON)
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(crm_report, f, ensure_ascii=False, indent=2)
             
-            self.logger.info(f"CRM report saved to: {filepath}")
+            self.logger.info(f"CRM report (JSON) saved to: {filepath}")
+            
+            # Write report to file (PDF)
+            pdf_filename = f"{customer_name}_{timestamp}.pdf"
+            pdf_filepath = reports_dir / pdf_filename
+            
+            pdf_gen = PDFReportGenerator()
+            pdf_gen.generate(crm_report, pdf_filepath)
+            
             return str(filepath)
             
         except Exception as e:
-            self.logger.error(f"Failed to save CRM report: {e}")
+            self.logger.error(f"Failed to save CRM report: {e}", exc_info=True)
             return "DOSYA_KAYIT_HATASI"

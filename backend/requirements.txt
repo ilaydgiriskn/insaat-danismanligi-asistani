@@ -20,3 +20,6 @@ openai==1.54.4
 # Utilities
 python-dotenv==1.0.1
 httpx<0.28.0
+
+# Reporting
+reportlab==4.2.5

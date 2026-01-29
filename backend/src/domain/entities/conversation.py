@@ -138,5 +138,12 @@ class Conversation:
         """Mark the entity as updated."""
         self.updated_at = datetime.utcnow()
     
+    def get_last_assistant_message(self) -> Optional[Message]:
+        """Get the last message sent by assistant."""
+        for msg in reversed(self.messages):
+            if msg.role == MessageRole.ASSISTANT:
+                return msg
+        return None
+        
     def __str__(self) -> str:
         return f"Conversation(id={self.id}, messages={len(self.messages)})"

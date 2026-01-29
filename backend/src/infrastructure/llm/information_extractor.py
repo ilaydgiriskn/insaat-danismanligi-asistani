@@ -30,16 +30,17 @@ Konuşma Geçmişi (Sondan başa doğru):
 
 GÖREV:
 1. Kullanıcının verdiği net bilgileri çıkar.
-2. **Soyisim (surname)**: Kullanıcı "Ali Yılmaz" dediyse Yılmaz'ı soyisim olarak al. Hiç verilmediyse `null` bırak.
+2. **Soyisim (surname)**: Kullanıcı "Ali Yılmaz" dediyse Yılmaz'ı soyisim olarak al. Hiç verilmediyse `null` bırak. ASLA email adresinden isim veya soyisim çıkarma.
 3. **Medeni Durum (marital_status)**: "evleneceğim", "nişanlıyım" gibi ifadeleri "evli/nişanlı" kategorisine yönlendir. 
-4. **Bütçe ve Oda**: Rakamları netleştir. "6 milyon" -> 6000000.
+4. **Maaş ve Bütçe AYRIMI**: 
+   - `monthly_income`: Kullanıcının AYLIK geliri. Rakam olarak al. (Örn: "80k" -> 80000). ASLA "yüksek", "iyi" gibi yorum yapma.
+   - `purchase_budget`: Ev almak için ayırdığı toplam bütçe. SADECE kullanıcı "ev için bütçem X" derse doldur. Maaştan türetme.
 5. **Lokasyon Ayrımı**: 
-   - `current_city`: Şu an yaşadığı şehir/ilçe (Örn: "Şişli'de oturuyorum") -> Bu zorunlu alandır.
-   - `location`: Ev almak istediği yer (Örn: "Beşiktaş tarafı düşünüyorum")
+   - `current_city`: Şu an yaşadığı şehir/ilçe. Şehir açıkça belirtilmediyse konuşma geçmişinden bul. (Örn: "Ordu" dedi, sonra "Şahinbey" dedi -> Şahinbey Ordu'da değilse bile kullanıcının beyanını esas al ya da bağlamı kontrol et).
+   - `location`: Ev almak istediği yer.
 6. 'answered_categories' listesine, mesajda cevabı bulunan kategorileri ekle.
-7. Çıkarımlar: `estimated_salary_range` (meslekten) ve `lifestyle_notes` (hobilerden) alanlarını doldur.
 
-Cevap formatı kesinlikle JSON olmalıdır. Boş kalan yerleri `null` yap. kategoriler: name, surname, budget, location, rooms, profession, hometown, marital_status, has_children, hobbies, etc. email, phone.
+Cevap formatı kesinlikle JSON olmalıdır.
 """
 
         try:
@@ -56,14 +57,13 @@ Cevap formatı kesinlikle JSON olmalıdır. Boş kalan yerleri `null` yap. kateg
                     "profession": "string or null",
                     "marital_status": "string or null",
                     "has_children": "boolean or null",
-                    "budget": "number or null",
+                    "purchase_budget": "number or null",
+                    "monthly_income": "number or null",
                     "location": "string or null", # Preferred location
                     "property_type": "string or null",
                     "rooms": "number or null",
                     "hobbies": "array or null",
-                    "estimated_salary_range": "string or null",
                     "lifestyle_notes": "string or null",
-                    "family_structure": "string or null",
                     "answered_categories": "array of category names"
                 }
             )
