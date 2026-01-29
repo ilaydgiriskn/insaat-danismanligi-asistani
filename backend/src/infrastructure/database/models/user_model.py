@@ -55,6 +55,11 @@ class UserModel(Base):
     estimated_salary: Mapped[str | None] = mapped_column(String(255), nullable=True)
     hobbies: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     
+    # New Fields
+    social_amenities: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    purchase_purpose: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    lifestyle_notes: Mapped[str | None] = mapped_column(String, nullable=True)
+    
     # Budget
     budget_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
     budget_max: Mapped[int | None] = mapped_column(Integer, nullable=True)

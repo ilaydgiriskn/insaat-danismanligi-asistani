@@ -103,7 +103,7 @@ function App() {
                     : 'bg-gray-50 text-gray-800 border border-gray-200'
                   }`}
               >
-                <p className="whitespace-pre-wrap">{message.content}</p>
+                <p className="whitespace-pre-wrap text-left leading-normal">{message.content}</p>
               </div>
             </div>
           ))}

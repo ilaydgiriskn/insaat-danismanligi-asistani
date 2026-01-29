@@ -1,0 +1,64 @@
+{
+  "rapor_tarihi": "2026-01-29T11:48:20.043743",
+  "musteri_bilgileri": {
+    "isim": "ahmet",
+    "telefon": "5674839876",
+    "email": "ahmet@gmail.com",
+    "memleket": "Siverek"
+  },
+  "profesyonel_bilgiler": {
+    "meslek": "yazılım mühendisi",
+    "tahmini_maas": "70000"
+  },
+  "aile_bilgileri": {
+    "medeni_durum": "bekar",
+    "cocuk_var_mi": true,
+    "aile_buyuklugu": null
+  },
+  "yasam_tarzi": {
+    "hobiler": [
+      "yürüyüş",
+      "spor"
+    ]
+  },
+  "konut_tercihleri": {
+    "hedef_sehir": "Şanlıurfa Siverek",
+    "hedef_ilce": null,
+    "oda_sayisi": 5,
+    "ev_tipi": "apartment",
+    "sosyal_alanlar": [],
+    "satin_alma_amaci": "Yatırım"
+  },
+  "butce_analizi": {
+    "belirtilen_butce": null,
+    "para_birimi": "TRY",
+    "tavsiye_edilen_segment": "B",
+    "guven_seviyesi": "medium",
+    "ust_segmente_gecis_mumkun": null,
+    "ek_butce_gerekli": null
+  },
+  "ai_degerlendirmesi": {
+    "risk_istahi": "medium",
+    "satin_alma_motivasyonu": "yatırım",
+    "satin_alma_zamani": "3 ay",
+    "ozet": "Ahmet Bey, yüksek gelirli, geleceğe yönelik yatırım odaklı, çocukları için güvenli ve sosyal alanları bol bir yaşam alanı arayan bir profil çiziyor. Kısa ve net cevapları, zamanının değerli olduğunu gösteriyor.",
+    "tavsiyeler": [
+      "Siverek'te yatırım potansiyeli yüksek, geniş sosyal alanlara sahip projeler öncelikli olmalı.",
+      "5 odalı, çocuklu bir aile için uygun, yeşil alan ve spor tesislerine yakın konutlar değerlendirilmeli.",
+      "Orta vadeli (3-6 ay) değer artışı beklenen, gelişmekte olan bölgelerdeki projelere yönlendirme yapılmalı."
+    ],
+    "dikkat_noktalari": [
+      "Kullanıcının yatırım amacı net, ancak çocukları için de sosyal imkanlar önemli; bu iki faktörü dengeleyen seçenekler sunulmalı.",
+      "Bütçe net olmadığı için, orta segmentteki (B) projelere odaklanılmalı, ancak esnek seçenekler de sunulabilir.",
+      "Kullanıcının zamanı kısıtlı olabilir; süreci hızlandıracak, net bilgiler içeren bir yaklaşım benimsenmeli."
+    ],
+    "yasam_tarzi_notlari": [
+      "Kullanıcı, yoğun bir yazılım mühendisi olarak çalışıyor, ancak çocukları için geleceği planlama motivasyonu yüksek.",
+      "Sohbet tarzı kısa, net ve direkt; zamanı verimli kullanmak istiyor olabilir.",
+      "İstanbul kökenli olmasına rağmen Siverek'te yaşamayı tercih ediyor, bu da sakin ve düzenli bir yaşam arayışında olduğunu gösteriyor.",
+      "Yürüyüş ve spora verdiği önem, hem kendi sağlığı hem de çocuklarıyla kaliteli zaman geçirme isteğinden kaynaklanıyor.",
+      "Bekar olmasına rağmen iki çocuğu var, bu da sorumluluk sahibi ve planlı bir yapıya sahip olduğunu işaret ediyor."
+    ]
+  },
+  "status": "PROFIL_TAMAMLANDI_EMLAKCIYA_GONDERILDI"
+}

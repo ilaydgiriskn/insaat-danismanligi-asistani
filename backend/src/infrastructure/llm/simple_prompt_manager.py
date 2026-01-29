@@ -114,12 +114,13 @@ Aşağıdaki bilgiler MUTLAKA alınmalıdır:
 3. Yaşadığı şehir
 4. Yaşadığı semt
 5. Gelir / maaş (Maaşı "orta", "iyi" gibi sıfatlarla değil, RAKAM veya ARALIK olarak iste. Örn: "Yaklaşık bir rakam paylaşabilir misin?")
-6. E-posta adresi
-7. Telefon numarası
+6. İletişim Bilgileri (E-posta ZORUNLU, Telefon İSTEĞE BAĞLI).
+   - ÖZEL KURAL: İkisini tek mesajda iste. Şöyle de: "Raporu iletmek için e-posta adresinizi, ve iletişim kolaylığı açısından telefon numaranızı rica ediyorum. Telefonu paylaşmak istemezseniz anlarım."
+7. (Boş - Yukarıda birleştirildi)
 8. Medeni durum
 9. İstenilen oda sayısı
 10. Memleket / Nereli olduğu
-11. Sosyal Alanlar (Spor salonu, havuz vb. istekleri - Sorulması zorunlu)
+11. Sosyal Alanlar (Spor salonu, havuz, basketbol sahası, yürüyüş parkuru vb. istekleri - Sorulması zorunlu)
 12. Satın Alma Amacı (Yatırım mı Oturum mu?)
 
 Bu bilgiler tamamlanmadan:

@@ -36,6 +36,7 @@ class UserProfile:
     estimated_salary: Optional[str] = None
     social_amenities: list[str] = field(default_factory=list)
     purchase_purpose: Optional[str] = None
+    lifestyle_notes: Optional[str] = None
     
     # Preferences (Value Objects)
     budget: Optional[Budget] = None

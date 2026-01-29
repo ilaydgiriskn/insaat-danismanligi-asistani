@@ -423,16 +423,26 @@ class ProcessUserMessageUseCase:
             missing.append("meslek (zorunlu)")
         if not profile.estimated_salary:
             missing.append("maaş/gelir (zorunlu)")
+        if not profile.estimated_salary:
+            missing.append("maaş/gelir (zorunlu)")
+        
+        # İletişim Bilgileri (Email Zorunlu, Telefon Sorulmalı)
         if not profile.email:
-            missing.append("e-posta (zorunlu)")
+            missing.append("iletişim bilgileri (e-posta ZORUNLU ve telefon birlikte sor - telefonun kolaylık için olduğunu belirt)")
+        elif not profile.phone_number and not profile.has_answered_category(QuestionCategory.PHONE_NUMBER):
+            missing.append("telefon numarası (isteğe bağlı, iletişim kolaylığı için)")
+        if not profile.current_city:
+            missing.append("yaşadığı şehir (zorunlu)")
+        # Note: 'current_city' usually holds "City, District" but prompt asks for Semt specifically.
+        # We rely on extraction to put Semt in current_city or hometown.
+        
         if not profile.current_city:
             missing.append("yaşadığı şehir (zorunlu)")
         # Note: 'current_city' usually holds "City, District" but prompt asks for Semt specifically.
         # We rely on extraction to put Semt in current_city or hometown.
         
         # 2. OPSİYONEL AMA SORULMALI (Nice to have before analysis)
-        if not profile.phone_number:
-            missing.append("telefon numarası")
+        # Phone moved to Contact Block above
         if not profile.property_preferences or not profile.property_preferences.min_rooms:
             missing.append("istenen oda sayısı")
         if not profile.marital_status:
@@ -448,9 +458,8 @@ class ProcessUserMessageUseCase:
         if not profile.hometown:
              missing.append("memleket/nereli olduğu")
 
-        # Sosyal Alanlar (Spor salonu, havuz vb. istekleri var mı?)
         if not profile.has_answered_category(QuestionCategory.SOCIAL_AMENITIES):
-             missing.append("sosyal alan tercihleri (spor salonu, havuz vb.)")
+             missing.append("sosyal alan tercihleri (spor salonu, basketbol sahası, yürüyüş parkuru, havuz vb.)")
         
         # Satın Alma Amacı (Yatırım mı Oturum mu?)
         if not profile.purchase_purpose:

@@ -97,6 +97,10 @@ class SQLAlchemyUserRepository(IUserRepository):
             hobbies=entity.hobbies,
             family_size=entity.family_size,
             answered_categories=[cat.value for cat in entity.answered_categories],
+            # New Fields
+            social_amenities=entity.social_amenities or [],
+            purchase_purpose=entity.purchase_purpose,
+            lifestyle_notes=entity.lifestyle_notes,
         )
         
         # Budget
@@ -138,6 +142,9 @@ class SQLAlchemyUserRepository(IUserRepository):
         model.hobbies = entity.hobbies
         model.family_size = entity.family_size
         model.answered_categories = [cat.value for cat in entity.answered_categories]
+        model.social_amenities = entity.social_amenities or []
+        model.purchase_purpose = entity.purchase_purpose
+        model.lifestyle_notes = entity.lifestyle_notes
         
         # Budget
         if entity.budget:
@@ -226,6 +233,12 @@ class SQLAlchemyUserRepository(IUserRepository):
             has_children=model.has_children,
             estimated_salary=model.estimated_salary,
             hobbies=model.hobbies or [],
+            
+            # New Fields
+            social_amenities=model.social_amenities or [],
+            purchase_purpose=model.purchase_purpose,
+            lifestyle_notes=model.lifestyle_notes,
+            
             budget=budget,
             location=location,
             property_preferences=property_preferences,

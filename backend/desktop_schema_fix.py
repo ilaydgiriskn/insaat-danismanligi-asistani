@@ -22,6 +22,8 @@ async def apply_fix():
         ("surname", "character varying(255)"),
         ("current_city", "character varying(255)"),
         ("lifestyle_notes", "character varying"),
+        ("social_amenities", "jsonb"),
+        ("purchase_purpose", "character varying(255)"),
     ]
     
     async with engine.begin() as conn:
