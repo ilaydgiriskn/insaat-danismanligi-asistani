@@ -31,14 +31,20 @@ Konuşma Geçmişi (Sondan başa doğru):
 GÖREV:
 1. Kullanıcının verdiği net bilgileri çıkar.
 2. **Soyisim (surname)**: Kullanıcı "Ali Yılmaz" dediyse Yılmaz'ı soyisim olarak al. Hiç verilmediyse `null` bırak. ASLA email adresinden isim veya soyisim çıkarma.
+   - ÖNEMLİ: "Bilmiyorum", "Bilmem", "Hatırlamıyorum", "Öğretmen", "Doktor" gibi kelimeleri ASLA isim olarak alma. Sadece gerçek özel isimleri (Ali, Ayşe vb.) al.
 3. **Medeni Durum (marital_status)**: "evleneceğim", "nişanlıyım" gibi ifadeleri "evli/nişanlı" kategorisine yönlendir. 
 4. **Maaş ve Bütçe AYRIMI**: 
    - `monthly_income`: Kullanıcının AYLIK geliri. Rakam olarak al. (Örn: "80k" -> 80000). ASLA "yüksek", "iyi" gibi yorum yapma.
    - `purchase_budget`: Ev almak için ayırdığı toplam bütçe. SADECE kullanıcı "ev için bütçem X" derse doldur. Maaştan türetme.
 5. **Lokasyon Ayrımı**: 
-   - `current_city`: Şu an yaşadığı şehir/ilçe. Şehir açıkça belirtilmediyse konuşma geçmişinden bul. (Örn: "Ordu" dedi, sonra "Şahinbey" dedi -> Şahinbey Ordu'da değilse bile kullanıcının beyanını esas al ya da bağlamı kontrol et).
+   - `current_city`: Şu an yaşadığı şehir/ilçe. Şehir ve ilçe tutarsızsa (Örn: "Ordu Şahinbey"), İLÇENİN bağlı olduğu gerçek şehri esas al (Şahinbey -> Gaziantep) veya emin değilsen bağlamı kontrol et.
    - `location`: Ev almak istediği yer.
-6. 'answered_categories' listesine, mesajda cevabı bulunan kategorileri ekle.
+6. **Sosyal Alanlar (social_amenities)**: Spor salonu, havuz, yürüyüş parkuru gibi talepler.
+7. **Satın Alma Amacı (purchase_purpose)**: 
+   - "Yatırım" olarak işaretle: "Kiraya vereceğim", "Değerlensin", "Yatırımlık", "Yatırım amacım var".
+   - "Oturum" olarak işaretle: "Ailemle yaşayacağım", "Kendim oturacağım", "Taşınmak istiyorum", "Oturmak için".
+   - "Hem yatırım hem oturum": İkisi de belirtilirse.
+8. 'answered_categories' listesine, mesajda cevabı bulunan kategorileri ekle.
 
 Cevap formatı kesinlikle JSON olmalıdır.
 """
@@ -59,6 +65,8 @@ Cevap formatı kesinlikle JSON olmalıdır.
                     "has_children": "boolean or null",
                     "purchase_budget": "number or null",
                     "monthly_income": "number or null",
+                    "social_amenities": "array of strings",
+                    "purchase_purpose": "string or null",
                     "location": "string or null", # Preferred location
                     "property_type": "string or null",
                     "rooms": "number or null",

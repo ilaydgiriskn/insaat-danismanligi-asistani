@@ -19,6 +19,8 @@ class QuestionCategory(str, Enum):
     PRIORITIES = "priorities"
     LOCATION = "location"
     ROOMS = "rooms"
+    SOCIAL_AMENITIES = "social_amenities"
+    PURCHASE_PURPOSE = "purchase_purpose"
 
     def __str__(self) -> str:
         return self.value

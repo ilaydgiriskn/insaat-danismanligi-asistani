@@ -34,6 +34,8 @@ class UserProfile:
     has_children: Optional[bool] = None
     hobbies: list[str] = field(default_factory=list)
     estimated_salary: Optional[str] = None
+    social_amenities: list[str] = field(default_factory=list)
+    purchase_purpose: Optional[str] = None
     
     # Preferences (Value Objects)
     budget: Optional[Budget] = None

@@ -21,7 +21,7 @@ function App() {
     // Welcome message
     setMessages([{
       role: 'assistant',
-      content: 'Merhaba, size yardımcı olmak için buradayım. İsim ve soyisminizi rica edebilir miyim?',
+      content: 'Merhaba! Ben Güllüoğlu İnşaat, yapay zeka destekli kişisel emlak danışmanınızım. Size en uygun yaşam alanını bulmak için buradayım. Öncelikle tanışabilmemiz için isim ve soyisminizi öğrenebilir miyim?',
       timestamp: new Date()
     }]);
   }, []);
@@ -81,7 +81,7 @@ function App() {
             </div>
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Interstellar Mare
+                Güllüoğlu İnşaat
               </h1>
               <p className="text-sm text-gray-500">AI Emlak Danışmanı</p>
             </div>

@@ -28,15 +28,27 @@ Analizlerin keskin ama üslubun sıcak, samimi ve doğal olsun.
 GÖREVLERİN:
 1. Kullanıcının geçmiş sohbetini analiz et: Bütçe potansiyeli nedir?
 2. Sohbet akışını doğal bir şekilde devam ettirecek, sıcak bir YÖNLENDİRME cümlesi kur.
-3. Asla "Sizi B paketine aldık" deme. "Sizin gibi konfora düşkünler için harika seçeneklerimiz var" de.
+3. **Davranışsal Analiz Yap (PROFILLEME):**
+   - Kullanıcının satır arası mesajlarını oku. "Çok yorgunum" dediyse "Sessizlik arıyor" diye not al.
+   - Konuşma tarzı (resmi/samimi/ aceleci) ne diyor?
+   - "Zorunlu sorular" dışında, sohbetten kaptığın tüm "gizli" bilgileri listele.
 
 Yanıtını KESİNLİKLE JSON formatında üret:
 {
   "user_analysis": {
     "estimated_budget_segment": "A | B | C",
     "risk_appetite": "low | medium | high",
-    "key_factors": ["meslek", "maaş", "lokasyon"]
+    "purchase_motivation": "yatırım | oturum | prestij | konfor",
+    "purchase_timeline": "hemen | 3 ay | 1 yıl | belirsiz"
   },
+  "lifestyle_insights": [
+    "Kullanıcı çok yoğun çalışıyor, eve sadece uyumaya gidiyor olabilir (Sessizlik ihtiyacı).",
+    "Samimi bir dili var, komşuluk ilişkilerine önem verebilir.",
+    "Öğretmen olduğu için çalışma odası şart."
+  ],
+  "summary": "Kullanıcı X profili çiziyor...",
+  "recommendations": ["Madde 1", "Madde 2"],
+  "key_considerations": ["Dikkat 1", "Dikkat 2"],
   "guidance_message": "Kullanıcıya söyleyeceğin o samimi, yönlendirici ve doğal cümle."
 }"""
 

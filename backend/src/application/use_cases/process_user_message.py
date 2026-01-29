@@ -229,6 +229,14 @@ class ProcessUserMessageUseCase:
                 profile.estimated_salary = str(extracted_info["monthly_income"])
                 profile.answered_categories.add(QuestionCategory.ESTIMATED_SALARY)
             
+            if extracted_info.get("social_amenities") is not None:
+                profile.social_amenities = extracted_info["social_amenities"]
+                profile.answered_categories.add(QuestionCategory.SOCIAL_AMENITIES)
+            
+            if extracted_info.get("purchase_purpose"):
+                profile.purchase_purpose = extracted_info["purchase_purpose"]
+                profile.answered_categories.add(QuestionCategory.PURCHASE_PURPOSE)
+
             # Update purchase_budget if explicitly provided
             if extracted_info.get("purchase_budget"):
                  # Create budget object logic here if needed, or update if existing
@@ -260,7 +268,7 @@ class ProcessUserMessageUseCase:
                 return
             
             # Very short message might be a name
-            words = [w for w in clean.split() if w not in GREETINGS and w not in ['benim', 'adım', 'ben', 'evet', 'hayır', 'var', 'yok']]
+            words = [w for w in clean.split() if w not in GREETINGS and w not in ['benim', 'adım', 'ben', 'evet', 'hayır', 'var', 'yok', 'bilmiyorum', 'bilmem']]
             if len(words) == 1 and 2 < len(words[0]) < 15:
                 # Basic check to avoid common words, but LLM will correct this if wrong
                 if words[0] not in ['doktor', 'istanbul', 'ankara', 'evet']:
@@ -429,7 +437,25 @@ class ProcessUserMessageUseCase:
             missing.append("istenen oda sayısı")
         if not profile.marital_status:
             missing.append("medeni durum")
-            
+        
+        # 3. DURUMA BAĞLI ZORUNLU (Conditional)
+        # Eğer evli ise çocuk durumu sorulmalı
+        if profile.marital_status and "evli" in profile.marital_status.lower() and profile.has_children is None:
+            missing.append("çocuk sayısı")
+        
+        # 4. SORULMASI ZORUNLU (Must Ask - Even if answer is 'None')
+        # Hometown (nereli olduğu)
+        if not profile.hometown:
+             missing.append("memleket/nereli olduğu")
+
+        # Sosyal Alanlar (Spor salonu, havuz vb. istekleri var mı?)
+        if not profile.has_answered_category(QuestionCategory.SOCIAL_AMENITIES):
+             missing.append("sosyal alan tercihleri (spor salonu, havuz vb.)")
+        
+        # Satın Alma Amacı (Yatırım mı Oturum mu?)
+        if not profile.purchase_purpose:
+             missing.append("satın alma amacı (yatırım/oturum)")
+
         return missing
     
     async def _generate_response(self, profile: UserProfile, conversation: Conversation, missing: list, advisor_analysis: dict) -> str:
@@ -599,6 +625,8 @@ Yanıt:"""
                 "hedef_ilce": profile.location.district if (profile.location and hasattr(profile.location, 'district')) else None,
                 "oda_sayisi": profile.property_preferences.min_rooms if profile.property_preferences else None,
                 "ev_tipi": (profile.property_preferences.property_type.value if profile.property_preferences.property_type else None) if profile.property_preferences else None,
+                "sosyal_alanlar": profile.social_amenities if profile.social_amenities else [],
+                "satin_alma_amaci": profile.purchase_purpose,
             },
             "butce_analizi": {
                 "belirtilen_butce": profile.budget.max_amount if profile.budget else None,

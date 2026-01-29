@@ -107,7 +107,7 @@ class PDFReportGenerator:
             story = []
             
             # 1. Header & Title
-            story.append(Paragraph("Interstellar Mare | AI Emlak Raporu", self.styles["ReportTitle"]))
+            story.append(Paragraph("Güllüoğlu İnşaat | AI Emlak Raporu", self.styles["ReportTitle"]))
             story.append(Paragraph(f"Tarih: {datetime.now().strftime('%d.%m.%Y %H:%M')}", self.styles["TurkishBody"]))
             story.append(Spacer(1, 20))
             
@@ -124,7 +124,7 @@ class PDFReportGenerator:
                 ["Meslek:", prof_info.get("meslek", "-")],
                 ["Tahmini Gelir:", prof_info.get("tahmini_maas", "-")],
                 ["Medeni Durum:", family_info.get("medeni_durum", "-")],
-                ["Aile Yapısı:", "Çocuk Var" if family_info.get("cocuk_var_mi") else "Çocuk Yok"]
+                ["Aile Yapısı:", "Çocuk Var" if family_info.get("cocuk_var_mi") is True else ("Çocuk Yok" if family_info.get("cocuk_var_mi") is False else "Belirtilmedi")]
             ]
             
             self._add_table(story, profile_data)
@@ -138,6 +138,8 @@ class PDFReportGenerator:
                 ["Hedef Lokasyon:", f"{prefs.get('hedef_sehir', '-')} / {prefs.get('hedef_ilce', '-')}"],
                 ["Oda Sayısı:", str(prefs.get("oda_sayisi", "-"))],
                 ["Konut Tipi:", prefs.get("ev_tipi", "-")],
+                ["Satın Alma Amacı:", prefs.get("satin_alma_amaci") or "Belirtilmedi"],
+                ["Sosyal Alanlar:", ", ".join(prefs.get("sosyal_alanlar", [])) if prefs.get("sosyal_alanlar") else "Talep Belirtilmedi"],
                 ["Bütçe Limiti:", f"{budget.get('belirtilen_butce', '-')} {budget.get('para_birimi', '')}"],
                 ["Önerilen Segment:", budget.get("tavsiye_edilen_segment", "-")]
             ]
