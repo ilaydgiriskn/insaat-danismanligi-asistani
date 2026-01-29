@@ -1,0 +1,66 @@
+{
+  "rapor_tarihi": "2026-01-29T14:41:37.375426",
+  "musteri_bilgileri": {
+    "isim": "veli",
+    "telefon": "5321245678",
+    "email": "velisoylu@gmail.com",
+    "memleket": "istanbul"
+  },
+  "profesyonel_bilgiler": {
+    "meslek": "doktor",
+    "tahmini_maas": "75000"
+  },
+  "aile_bilgileri": {
+    "medeni_durum": "evli",
+    "cocuk_var_mi": true,
+    "aile_buyuklugu": null
+  },
+  "yasam_tarzi": {
+    "hobiler": []
+  },
+  "konut_tercihleri": {
+    "hedef_sehir": "Adana",
+    "hedef_ilce": null,
+    "oda_sayisi": 5,
+    "ev_tipi": "apartment",
+    "sosyal_alanlar": [
+      "havuz",
+      "yürüyüş parkuru"
+    ],
+    "satin_alma_amaci": "Oturum"
+  },
+  "butce_analizi": {
+    "belirtilen_butce": null,
+    "para_birimi": "TRY",
+    "tavsiye_edilen_segment": "A",
+    "guven_seviyesi": "medium",
+    "ust_segmente_gecis_mumkun": null,
+    "ek_butce_gerekli": null
+  },
+  "ai_degerlendirmesi": {
+    "risk_istahi": "low",
+    "satin_alma_motivasyonu": "konfor",
+    "satin_alma_zamani": "hemen",
+    "ozet": "Veli Bey, yoğun mesai saatlerinden sonra ailesiyle birlikte huzur bulacağı, geniş ve konforlu bir ev arayan, gelir seviyesi yüksek bir profesyonel. Temel motivasyonu ailesi için güvenli ve rahat bir yaşam alanı oluşturmak.",
+    "tavsiyeler": [
+      "5 odalı, geniş bir aile evi öncelikli olmalı.",
+      "Site içinde yürüyüş parkuru ve havuzu olan projelere odaklanılmalı.",
+      "Adana merkezde, ulaşımı kolay ve aile dostu mahallelerdeki konutlar değerlendirilmeli.",
+      "Evin içinde, doktorluk mesleğinin getirdiği yoğunluğu atabileceği özel bir dinlenme köşesi veya çalışma odası düşünülebilir."
+    ],
+    "dikkat_noktalari": [
+      "Bütçesi yüksek (A segmenti) olduğu için, lüks ve kaliteli malzemelerle donatılmış, tam donanımlı projeler sunulmalı.",
+      "3 çocuklu bir aile için mahalle güvenliği ve okullara yakınlık çok önemli.",
+      "Adana'nın sıcak iklimi göz önünde bulundurularak, iyi yalıtımlı ve klimalı evler tercih edilmeli.",
+      "Eşinin de beklentileri ve tercihleri mutlaka sürece dahil edilmeli."
+    ],
+    "yasam_tarzi_notlari": [
+      "Yoğun ve stresli bir mesleği var (doktor), bu nedenle evinin dinlendirici ve huzurlu bir sığınak olması çok önemli.",
+      "Aile odaklı bir yaşamı var (eşi ve 3 çocuk), bu nedenle geniş ve fonksiyonel bir yaşam alanı arayışında.",
+      "İstanbul'dan Adana'ya taşınmış, bu da uyum sağlama ve yeni bir yuva kurma motivasyonunu gösteriyor.",
+      "Aktif bir yaşam tarzı tercih ediyor (yürüyüş parkuru ve havuz istemesi).",
+      "Samimi ve açık bir iletişim tarzı var, detayları paylaşmaya istekli."
+    ]
+  },
+  "status": "PROFIL_TAMAMLANDI_EMLAKCIYA_GONDERILDI"
+}

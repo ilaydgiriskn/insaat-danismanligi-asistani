@@ -14,7 +14,7 @@ from domain.entities import UserProfile, Conversation
 from domain.repositories import IUserRepository, IConversationRepository
 from domain.enums import QuestionCategory
 from infrastructure.config import get_logger
-from infrastructure.config import get_logger
+from infrastructure.reporting.smtp_client import send_report_via_email # Added
 from infrastructure.llm import InformationExtractor
 from infrastructure.reporting.pdf_generator import PDFReportGenerator
 
@@ -113,6 +113,21 @@ class ProcessUserMessageUseCase:
                     # CRM EXPORT: Silent background report
                     crm_report = self._generate_crm_report(profile, advisor_analysis)
                     self._save_crm_report_to_file(crm_report, profile)
+                    
+                    # EMAIL REPORTING (Non-blocking)
+                    # Use a formatted string or the raw JSON string. Since user asked for plain text report:
+                    # Let's format it slightly better for email if possible, or just send the analysis content.
+                    # "Mail body: raporun tamamı (plain text)" -> advisor_analysis.content + profile summary
+                    
+                    email_body = f"Müşteri: {profile.name} {profile.surname}\n\n"
+                    summary = advisor_analysis.get("structured_analysis", {}).get("summary", "Detaylı analiz ektedir.")
+                    email_body += f"ANALİZ RAPORU:\n{summary}\n\n"
+                    email_body += f"JSON DATA:\n{crm_report}"
+                    
+                    try:
+                        send_report_via_email(email_body, f"AI Analiz Raporu: {profile.name} {profile.surname}")
+                    except Exception as e:
+                        self.logger.error(f"Email trigger failed: {e}")
                     
                     # Final Closing Message - No more questions!
                     response = f"Harika! Tüm gerekli bilgileri not ettim. 📝\n\nRaporunuz hazırlanıyor ve en kısa sürede e-posta adresinize iletilecek.\n\nBize vakit ayırdığınız için teşekkürler, iyi günler dilerim! 👋"

@@ -42,9 +42,9 @@ GÖREV:
 6. **Sosyal Alanlar (social_amenities)**: Spor salonu, havuz, yürüyüş parkuru gibi talepler.
 7. **Satın Alma Amacı (purchase_purpose)**: 
    - "Yatırım" olarak işaretle: "Kiraya vereceğim", "Değerlensin", "Yatırımlık", "Yatırım amacım var".
-   - "Oturum" olarak işaretle: "Ailemle yaşayacağım", "Kendim oturacağım", "Taşınmak istiyorum", "Oturmak için".
+   - "Oturum" olarak işaretle: "Ailemle yaşayacağım", "Kendim oturacağım", "Oturcam", "Kendim kalcam", "Taşınmak istiyorum", "Oturmak için".
    - "Hem yatırım hem oturum": İkisi de belirtilirse.
-8. 'answered_categories' listesine, mesajda cevabı bulunan kategorileri ekle.
+8. 'answered_categories' listesine, mesajda cevabı bulunan kategorileri MUTLAKA ekle. Örneğin 'purchase_purpose' dolduysa listeye 'PURCHASE_PURPOSE' ekle.
 
 Cevap formatı kesinlikle JSON olmalıdır.
 """

@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
     log_format: str = "json"
+
+    # SMTP / Email Configuration
+    smtp_server: Optional[str] = None
+    smtp_port: int = 587
+    smtp_email: Optional[str] = None
+    smtp_password: Optional[str] = None
     
     model_config = SettingsConfigDict(
         env_file=".env",
