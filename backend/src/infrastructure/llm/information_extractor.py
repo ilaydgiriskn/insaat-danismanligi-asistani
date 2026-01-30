@@ -56,8 +56,8 @@ GÖREV:
 10. 'answered_categories' listesine, mesajda cevabı bulunan kategorileri MUTLAKA ekle. Örneğin 'purchase_purpose' dolduysa listeye 'PURCHASE_PURPOSE' ekle.
 
 49. **Telefon Numarası Kontrolü**:
-   - Eğer kullanıcı bir numara yazdıysa (532...) ama 10 haneden kısaysa (örn: "532 123", "0543", "505 123 45"), 'phone' alanını NULL bırak.
-   - Ve 'validation_warnings' listesine 'phone_invalid' ekle.
+   - Eğer kullanıcı TELEFON VERMEK İSTEMİYORSA ("vermek istemiyorum", "paylaşmak istemiyorum", "telefonu vermeyeceğim", "numara yok" gibi), 'answered_categories' listesine 'PHONE_NUMBER' ekle ve 'phone' null bırak. Bu durumda 'phone_invalid' EKLEME.
+   - Eğer kullanıcı bir numara YAZDIYSA (532...) ama 10 haneden kısaysa (örn: "532 123", "0543", "505 123 45"), 'phone' alanını NULL bırak VE 'validation_warnings' listesine 'phone_invalid' ekle.
    - Sadece geçerli (10-11 haneli) numaraları 'phone' alanına al.
 
 Cevap formatı kesinlikle JSON olmalıdır.
