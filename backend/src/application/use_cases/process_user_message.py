@@ -140,15 +140,8 @@ class ProcessUserMessageUseCase:
                     except Exception as e:
                         self.logger.error(f"Email trigger failed: {e}")
                     
-                    # Final Closing Message - Samimi ve kişisel (Cinsiyet algılama)
-                    # Yaygın Türk kadın isimleri
-                    female_names = ["emine", "ayşe", "fatma", "hatice", "zeynep", "elif", "meryem", "zehra", "sultan", "hacer", "cemile", "hanife", "havva", "şerife", "rabia", "döndü", "durdu", "ümmü", "gülsüm", "esra", "büşra", "merve", "betül", "seda", "gamze", "derya", "özlem", "serpil", "sevgi", "sevda", "songül", "gül", "gülden", "gülay", "nurcan", "nuray", "nuran", "nurcihan", "canan", "dilek", "filiz", "hülya", "sibel", "pınar", "ebru", "asuman", "aslı", "arzum", "arzu", "deniz", "yasemin", "nilüfer", "nilgün", "mine", "mehtap", "meltem", "melisa", "melissa", "defne", "ilknur", "ilkay", "ilayda", "irem", "irmak", "beren", "selin", "selinay", "su", "ada", "nehir", "derin", "lara", "maya", "mira", "naz", "nazlı", "cansu", "cemre", "damla", "ece", "ezgi", "gizem", "hazal", "ipek", "kübra", "melis", "nisa", "nurgül", "rümeysa", "sude", "tuğba", "yağmur", "zeynep", "zübeyde"]
-                    
-                    name_lower = (profile.name or "").lower().strip()
-                    is_female = name_lower in female_names
-                    honorific = "Hanım" if is_female else "Bey"
-                    
-                    response = f"{profile.name} {honorific}, sizinle sohbet etmek gerçekten çok keyifliydi! 😊\n\nHayalinizdeki evi bulmak için tüm bilgilerinizi özenle not ettim. Sizin için en uygun seçenekleri araştırıyorum.\n\nYeni yuvanızda mutlu günler geçirmenizi dilerim. Kendinize çok iyi bakın! 🏠✨"
+                    # Final Closing Message - Samimi ve kişisel
+                    response = f"{profile.name}, sizinle sohbet etmek gerçekten çok keyifliydi! 😊\n\nHayalinizdeki evi bulmak için tüm bilgilerinizi özenle not ettim. Sizin için en uygun seçenekleri araştırıyorum.\n\nYeni yuvanızda mutlu günler geçirmenizi dilerim. Kendinize çok iyi bakın! 🏠✨"
 
 
             else:
@@ -495,10 +488,13 @@ class ProcessUserMessageUseCase:
         if not profile.hometown:
              missing.append("memleket")
 
-        if not profile.has_answered_category(QuestionCategory.SOCIAL_AMENITIES):
+        # Sosyal Alanlar - MUTLAKA sorulmalı (hem kategori hem değer kontrolü)
+        has_social_answer = profile.has_answered_category(QuestionCategory.SOCIAL_AMENITIES)
+        has_social_values = profile.social_amenities is not None  # None değilse cevaplandı (boş liste bile olabilir)
+        if not has_social_answer and not has_social_values:
              missing.append("sosyal alan tercihleri")
         
-        # Satın Alma Amacı (Yatırım mı Oturum mu?)
+        # Satın Alma Amacı (Yatırım mı Oturum mu?) - MUTLAKA değer olmalı
         if not profile.purchase_purpose:
              missing.append("satın alma amacı")
 

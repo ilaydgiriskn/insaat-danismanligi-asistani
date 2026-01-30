@@ -1,0 +1,63 @@
+{
+  "rapor_tarihi": "2026-01-30T13:40:06.600163",
+  "musteri_bilgileri": {
+    "isim": "Aslı",
+    "telefon": "5448796059",
+    "email": "asli@gmail.com",
+    "memleket": "Adana"
+  },
+  "profesyonel_bilgiler": {
+    "meslek": "öğretmen",
+    "tahmini_maas": "60000"
+  },
+  "aile_bilgileri": {
+    "medeni_durum": "bekar",
+    "cocuk_var_mi": false,
+    "aile_buyuklugu": null
+  },
+  "yasam_tarzi": {
+    "hobiler": [
+      "yemek yapmayı seviyor"
+    ],
+    "notlar": "misafir odası geniş olsun"
+  },
+  "konut_tercihleri": {
+    "hedef_sehir": "Adana",
+    "hedef_ilce": null,
+    "oda_sayisi": 5,
+    "ev_tipi": "apartment",
+    "sosyal_alanlar": [],
+    "satin_alma_amaci": "Oturum"
+  },
+  "butce_analizi": {
+    "belirtilen_butce": null,
+    "para_birimi": "TRY",
+    "tavsiye_edilen_segment": "B",
+    "guven_seviyesi": "medium",
+    "ust_segmente_gecis_mumkun": null,
+    "ek_butce_gerekli": null
+  },
+  "ai_degerlendirmesi": {
+    "risk_istahi": "medium",
+    "satin_alma_motivasyonu": "konfor",
+    "satin_alma_zamani": "belirsiz",
+    "ozet": "Aslı, Adana'da öğretmen olarak çalışan, yemek yapmayı seven ve sosyal bir yaşam alanı arayan bir birey.",
+    "tavsiyeler": [
+      "Geniş mutfak ve misafir odası olan evleri öncelikle değerlendir.",
+      "Yaşadığın bölgedeki sosyal olanakları göz önünde bulundur.",
+      "Gelecekteki potansiyel ihtiyaçların için esnek bir alan yaratacak evleri araştır."
+    ],
+    "dikkat_noktalari": [
+      "Evde çalışma alanı da yaratmak isteyebilirsin.",
+      "Bütçeni netleştirmen, daha uygun seçenekler bulmana yardımcı olur."
+    ],
+    "yasam_tarzi_notlari": [
+      "Kullanıcı Adana merkezde yaşıyor ve öğretmenlik yapıyor.",
+      "Yemek yapmayı seviyor, geniş bir mutfak hayal ediyor.",
+      "Misafirlerine sıkça ev sahipliği yapmayı planlıyor, bu nedenle geniş bir misafir odasına ihtiyaç duyuyor.",
+      "Özel ders vermesi nedeniyle bazen öğrencileri evinde ağırlıyor.",
+      "Tek başına yaşamasına rağmen sosyal bir hayatı var, bu da geniş alan arayışını etkiliyor."
+    ]
+  },
+  "status": "PROFIL_TAMAMLANDI_EMLAKCIYA_GONDERILDI"
+}
