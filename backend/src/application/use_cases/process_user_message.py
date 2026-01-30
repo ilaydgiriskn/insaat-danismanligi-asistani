@@ -488,10 +488,8 @@ class ProcessUserMessageUseCase:
         if not profile.hometown:
              missing.append("memleket")
 
-        # Sosyal Alanlar - MUTLAKA sorulmalı (hem kategori hem değer kontrolü)
-        has_social_answer = profile.has_answered_category(QuestionCategory.SOCIAL_AMENITIES)
-        has_social_values = profile.social_amenities is not None  # None değilse cevaplandı (boş liste bile olabilir)
-        if not has_social_answer and not has_social_values:
+        # Sosyal Alanlar - MUTLAKA sorulmalı (SADECE kategori kontrolü - varsayılan [] olduğu için is not None çalışmaz)
+        if not profile.has_answered_category(QuestionCategory.SOCIAL_AMENITIES):
              missing.append("sosyal alan tercihleri")
         
         # Satın Alma Amacı (Yatırım mı Oturum mu?) - MUTLAKA değer olmalı
