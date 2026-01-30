@@ -1,0 +1,60 @@
+{
+  "rapor_tarihi": "2026-01-30T07:04:33.551185",
+  "musteri_bilgileri": {
+    "isim": "Ayşe",
+    "telefon": "56437890212",
+    "email": "aysekaya@gmail.com",
+    "memleket": "Gaziantep"
+  },
+  "profesyonel_bilgiler": {
+    "meslek": "esnaf",
+    "tahmini_maas": "55000"
+  },
+  "aile_bilgileri": {
+    "medeni_durum": "bekar",
+    "cocuk_var_mi": null,
+    "aile_buyuklugu": null
+  },
+  "yasam_tarzi": {
+    "hobiler": []
+  },
+  "konut_tercihleri": {
+    "hedef_sehir": "Trabzon",
+    "hedef_ilce": null,
+    "oda_sayisi": 5,
+    "ev_tipi": "apartment",
+    "sosyal_alanlar": [],
+    "satin_alma_amaci": "Oturum"
+  },
+  "butce_analizi": {
+    "belirtilen_butce": null,
+    "para_birimi": "TRY",
+    "tavsiye_edilen_segment": "B",
+    "guven_seviyesi": "medium",
+    "ust_segmente_gecis_mumkun": null,
+    "ek_butce_gerekli": null
+  },
+  "ai_degerlendirmesi": {
+    "risk_istahi": "medium",
+    "satin_alma_motivasyonu": "konfor",
+    "satin_alma_zamani": "3 ay",
+    "ozet": "Ayşe Hanım, yoğun esnaf hayatının ardından Trabzon'da kendine ait, huzurlu ve geniş (5 odalı) bir yaşam alanı kurmak isteyen, köklü bir yer değişikliği yaşamış, orta gelir grubunda ve kararlı bir profil çiziyor.",
+    "tavsiyeler": [
+      "Trabzon merkezde, ancak sakin cepheli, manzaralı ve doğayla iç içe projeler önceliklendirilmeli.",
+      "5 odalı dairelerde, bir odanın ofis/çalışma alanı olarak düzenlenebileceği esnek planlar sunulmalı.",
+      "Güvenlik ve konfor odaklı, site içi yaşam olanakları sunan projelere yönlendirme yapılmalı."
+    ],
+    "dikkat_noktalari": [
+      "Memleket özlemi olabileceği için, projenin sosyal alanlarında veya semtte bir 'cemaat' hissi yaratacak unsurlar vurgulanmalı.",
+      "Tek başına yaşayacağı için bakım-onarım kolaylığı ve güvenlik sistemleri önemli olacaktır.",
+      "Bütçesi orta segmentte olduğu için, Trabzon merkezdeki yeni projelerde fiyat-performans dengesi iyi seçenekler araştırılmalı."
+    ],
+    "yasam_tarzi_notlari": [
+      "Kullanıcı yoğun esnaf hayatından sonra kendine ait, huzurlu bir yaşam alanı arıyor (Sessizlik ve özel alan ihtiyacı).",
+      "Memleketi Gaziantep'ten Karadeniz'e taşınmak zorunda kalmış, bu da köklü bir yer değişikliği ve yeni bir hayat kurma motivasyonunu gösteriyor.",
+      "5 oda talebi, yalnız yaşasa da geniş bir alana ve misafir ağırlama potansiyeline önem verdiğini düşündürüyor.",
+      "Samimi ve açık bir iletişim tarzı var, güven veren ve kişisel hikayesini paylaşan bir profil çiziyor."
+    ]
+  },
+  "status": "PROFIL_TAMAMLANDI_EMLAKCIYA_GONDERILDI"
+}

@@ -74,9 +74,17 @@ GÖREV: Yukarıdaki kurallara göre doğal bir sonraki soruyu veya kapanış cü
         if profile.surname: parts.append(f"- Soyisim: {profile.surname}")
         if profile.profession: parts.append(f"- Meslek: {profile.profession}")
         if profile.current_city: parts.append(f"- Yaşadığı Yer: {profile.current_city}")
+        if profile.hometown: parts.append(f"- Memleket: {profile.hometown}")
         if profile.email: parts.append(f"- Email: {profile.email}")
+        if profile.phone_number: parts.append(f"- Telefon: {profile.phone_number}")
         if profile.estimated_salary: parts.append(f"- Gelir: {profile.estimated_salary}")
+        if profile.marital_status: parts.append(f"- Medeni Durum: {profile.marital_status}")
+        if profile.property_preferences and profile.property_preferences.min_rooms:
+            parts.append(f"- Oda Sayısı: {profile.property_preferences.min_rooms}")
+        if profile.social_amenities: parts.append(f"- Sosyal Alanlar: {', '.join(profile.social_amenities)}")
+        if profile.purchase_purpose: parts.append(f"- Satın Alma Amacı: {profile.purchase_purpose}")
         return "\n".join(parts) if parts else "Hiçbir bilgi yok."
+
     
     def _fallback_question_selection(
         self,

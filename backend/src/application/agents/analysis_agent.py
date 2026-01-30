@@ -172,15 +172,21 @@ KULLANICI PROFİLİ:
                 prompt=input_data,
                 system_message=self.AGENT2_SYSTEM_PROMPT,
                 temperature=0.3, # Low temperature for structured output
-                max_tokens=1000
+                max_tokens=1500
             )
 
-            # Cleanup potential markdown artifacts
+            # Cleanup potential markdown artifacts (Robust Regex)
             clean_json = response.strip()
-            if "```json" in clean_json:
-                clean_json = clean_json.split("```json")[1].split("```")[0].strip()
-            elif "```" in clean_json:
-                clean_json = clean_json.split("```")[1].split("```")[0].strip()
+            # Try to find JSON block
+            json_match = re.search(r'```json\s*(\{.*?\})\s*```', clean_json, re.DOTALL)
+            if json_match:
+                clean_json = json_match.group(1)
+            else:
+                # Try finding first { and last }
+                start = clean_json.find("{")
+                end = clean_json.rfind("}")
+                if start != -1 and end != -1:
+                    clean_json = clean_json[start:end+1]
                 
             return json.loads(clean_json)
         except Exception as e:

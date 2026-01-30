@@ -37,14 +37,28 @@ GÖREV:
    - `monthly_income`: Kullanıcının AYLIK geliri. Rakam olarak al. (Örn: "80k" -> 80000). ASLA "yüksek", "iyi" gibi yorum yapma.
    - `purchase_budget`: Ev almak için ayırdığı toplam bütçe. SADECE kullanıcı "ev için bütçem X" derse doldur. Maaştan türetme.
 5. **Lokasyon Ayrımı**: 
-   - `current_city`: Şu an yaşadığı şehir/ilçe. Şehir ve ilçe tutarsızsa (Örn: "Ordu Şahinbey"), İLÇENİN bağlı olduğu gerçek şehri esas al (Şahinbey -> Gaziantep) veya emin değilsen bağlamı kontrol et.
    - `location`: Ev almak istediği yer.
 6. **Sosyal Alanlar (social_amenities)**: Spor salonu, havuz, yürüyüş parkuru gibi talepler.
-7. **Satın Alma Amacı (purchase_purpose)**: 
+   - Eğer kullanıcı "yok", "farketmez", "önemli değil" derse BOŞ LİSTE `[]` döndür. 
+   - Konu hiç geçmediyse `null` döndür (Veriyi ezmemek için).
+7. **Oda Sayısı (rooms)**: 
+   - "3 artı 1", "üç artı bir", "3 oda" -> 3 olarak al.
+   - "5 oda istiyorum", "5 odalı" -> 5 olarak al.
+   - "çalışma odası", "misafir odası" gibi detaylar varsa bile, kullanıcının ANA beyanını (Örn: "5 oda") esas al.
+   - Sadece rakam (number) olarak dön. Bulunamazsa `null` dön.
+8. **Memleket (hometown)**:
+   - "Bursalıyım" -> Bursa, "Antepliyim" -> Gaziantep (Antep değil).
+   - "Köklerim X şehrinde" -> X.
+9. **Satın Alma Amacı (purchase_purpose)**: 
    - "Yatırım" olarak işaretle: "Kiraya vereceğim", "Değerlensin", "Yatırımlık", "Yatırım amacım var".
    - "Oturum" olarak işaretle: "Ailemle yaşayacağım", "Kendim oturacağım", "Oturcam", "Kendim kalcam", "Taşınmak istiyorum", "Oturmak için".
    - "Hem yatırım hem oturum": İkisi de belirtilirse.
-8. 'answered_categories' listesine, mesajda cevabı bulunan kategorileri MUTLAKA ekle. Örneğin 'purchase_purpose' dolduysa listeye 'PURCHASE_PURPOSE' ekle.
+10. 'answered_categories' listesine, mesajda cevabı bulunan kategorileri MUTLAKA ekle. Örneğin 'purchase_purpose' dolduysa listeye 'PURCHASE_PURPOSE' ekle.
+
+49. **Telefon Numarası Kontrolü**:
+   - Eğer kullanıcı bir numara yazdıysa (532...) ama 10 haneden kısaysa (örn: "532 123", "0543", "505 123 45"), 'phone' alanını NULL bırak.
+   - Ve 'validation_warnings' listesine 'phone_invalid' ekle.
+   - Sadece geçerli (10-11 haneli) numaraları 'phone' alanına al.
 
 Cevap formatı kesinlikle JSON olmalıdır.
 """
@@ -69,10 +83,11 @@ Cevap formatı kesinlikle JSON olmalıdır.
                     "purchase_purpose": "string or null",
                     "location": "string or null", # Preferred location
                     "property_type": "string or null",
-                    "rooms": "number or null",
+                    "rooms": "number or string or null", # Changed to allow string parsing fallback
                     "hobbies": "array or null",
                     "lifestyle_notes": "string or null",
-                    "answered_categories": "array of category names"
+                    "answered_categories": "array of category names",
+                    "validation_warnings": "array of strings" # New field for validation errors
                 }
             )
             

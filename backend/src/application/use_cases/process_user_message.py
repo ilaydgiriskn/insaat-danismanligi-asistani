@@ -7,6 +7,7 @@ from pathlib import Path
 import os
 import re
 import json
+import asyncio
 from difflib import get_close_matches
 
 from application.agents import QuestionAgent, ValidationAgent, AnalysisAgent
@@ -57,15 +58,11 @@ class ProcessUserMessageUseCase:
             
             conversation.add_user_message(user_message)
             
-            # 1. Extract info from current message using LLM (with history for context)
+            # 1. PARALLEL EXECUTION: Extraction & Analysis
+            # Run LLM extraction and Advisor Analysis at the same time to save 3-5 seconds.
             history_str = self._get_history(conversation, 5)
-            await self._update_profile_from_message(profile, user_message, history_str)
             
-            # Keep manual fallbacks for basic things (optional but safe)
-            self._extract_all_info(profile, user_message)
-            
-            # 2. Perform strategic analysis (internal)
-            # Pass full history for deep Agent 2 analysis (defensive conversion)
+            # Prepare Analysis Input (using current profile state)
             history_messages = conversation.get_recent_messages(20)
             history_dicts = []
             for m in history_messages:
@@ -74,7 +71,26 @@ class ProcessUserMessageUseCase:
                 else:
                     history_dicts.append({"role": getattr(m, 'role', 'user'), "content": getattr(m, 'content', str(m))})
             
-            advisor_analysis = await self.analysis_agent.execute(profile, chat_history=history_dicts)
+            # Execute both concurrently
+            warnings, advisor_analysis = await asyncio.gather(
+                self._update_profile_from_message(profile, user_message, history_str),
+                self.analysis_agent.execute(profile, chat_history=history_dicts)
+            )
+            
+            # IMMEDIATE VALIDATION CHECK
+            if warnings and "phone_invalid" in warnings:
+                response = "Girdiğiniz telefon numarası eksik veya hatalı görünüyor (en az 10 hane olmalı). İletişim için önemli, lütfen kontrol edip tekrar yazar mısınız? 🙏"
+                conversation.add_assistant_message(response)
+                await self.conversation_repo.update(conversation)
+                return {
+                    "response": response,
+                    "type": "question",
+                    "is_complete": False,
+                    "category": QuestionCategory.PHONE_NUMBER
+                }
+            
+            # Keep manual fallbacks for basic things (optional but safe)
+            self._extract_all_info(profile, user_message)
             
             self.logger.info(f"Advisor Analysis result: {json.dumps(advisor_analysis.get('structured_analysis'), ensure_ascii=False) if advisor_analysis.get('structured_analysis') else 'Heuristic/Fallback'}")
             
@@ -85,14 +101,12 @@ class ProcessUserMessageUseCase:
             # Get missing info strict check
             missing = self._get_missing_info(profile)
             
-            # FORCE READY if strictly no missing fields
-            if not missing:
-                is_ready = True
+            # DETERMINISTIC CHECK: Use missing info list, no LLM call needed
+            is_ready = not missing
+            if is_ready:
                 self.logger.info("Deterministic Logic: All fields present -> Force Ready")
             else:
-                # Fallback to agent opinion
-                validation_result = await self.validation_agent.execute(profile)
-                is_ready = validation_result.get("is_ready_for_analysis", False)
+                self.logger.info(f"Missing fields: {missing}")
             
             if is_ready:
                 # PHASE 2: Profile Complete
@@ -112,20 +126,16 @@ class ProcessUserMessageUseCase:
                     
                     # CRM EXPORT: Silent background report
                     crm_report = self._generate_crm_report(profile, advisor_analysis)
-                    self._save_crm_report_to_file(crm_report, profile)
+                    pdf_path = self._save_crm_report_to_file(crm_report, profile)
                     
                     # EMAIL REPORTING (Non-blocking)
-                    # Use a formatted string or the raw JSON string. Since user asked for plain text report:
-                    # Let's format it slightly better for email if possible, or just send the analysis content.
-                    # "Mail body: raporun tamamı (plain text)" -> advisor_analysis.content + profile summary
-                    
                     email_body = f"Müşteri: {profile.name} {profile.surname}\n\n"
                     summary = advisor_analysis.get("structured_analysis", {}).get("summary", "Detaylı analiz ektedir.")
-                    email_body += f"ANALİZ RAPORU:\n{summary}\n\n"
-                    email_body += f"JSON DATA:\n{crm_report}"
+                    email_body += f"ANALİZ RAPORU ÖZETİ:\n{summary}\n\n"
+                    email_body += "Detaylı rapor PDF olarak ektedir."
                     
                     try:
-                        send_report_via_email(email_body, f"AI Analiz Raporu: {profile.name} {profile.surname}")
+                        send_report_via_email(email_body, f"AI Analiz Raporu: {profile.name} {profile.surname}", attachment_path=pdf_path)
                     except Exception as e:
                         self.logger.error(f"Email trigger failed: {e}")
                     
@@ -154,14 +164,16 @@ class ProcessUserMessageUseCase:
                 "is_complete": False,
             }
     
-    async def _update_profile_from_message(self, profile: UserProfile, message: str, history: str) -> None:
-        """Update profile using LLM-based information extractor."""
+    async def _update_profile_from_message(self, profile: UserProfile, message: str, history: str) -> list:
+        """Update profile and return validation warnings if any."""
         try:
             extracted_info = await self.info_extractor.extract_profile_info(message, history)
             self.logger.info(f"Extracted info: {json.dumps(extracted_info, ensure_ascii=False)}")
             
             if not extracted_info:
-                return
+                return []
+            
+            warnings = extracted_info.get("validation_warnings", [])
 
             # Map fields to UserProfile
             # Map fields to UserProfile
@@ -210,20 +222,26 @@ class ProcessUserMessageUseCase:
                 from domain.value_objects import PropertyPreferences
                 from domain.enums import PropertyType
                 try:
-                    rooms_val = int(extracted_info["rooms"])
-                    # Create NEW instance (PropertyPreferences is frozen)
-                    if not profile.property_preferences:
-                        profile.property_preferences = PropertyPreferences(property_type=PropertyType.APARTMENT, min_rooms=rooms_val)
-                    else:
-                        # Re-create with updated value
-                        profile.property_preferences = PropertyPreferences(
-                            property_type=profile.property_preferences.property_type,
-                            min_rooms=rooms_val,
-                            max_rooms=profile.property_preferences.max_rooms,
-                            has_balcony=profile.property_preferences.has_balcony,
-                            has_parking=profile.property_preferences.has_parking
-                        )
-                    profile.answered_categories.add(QuestionCategory.ROOMS)
+                    # Robust parsing for "3+1", "3", 3, "4 oda" etc.
+                    raw_rooms = str(extracted_info["rooms"])
+                    # Extract first number found
+                    match = re.search(r'(\d+)', raw_rooms)
+                    if match:
+                        rooms_val = int(match.group(1))
+                        
+                        # Create NEW instance (PropertyPreferences is frozen)
+                        if not profile.property_preferences:
+                            profile.property_preferences = PropertyPreferences(property_type=PropertyType.APARTMENT, min_rooms=rooms_val)
+                        else:
+                            # Re-create with updated value
+                            profile.property_preferences = PropertyPreferences(
+                                property_type=profile.property_preferences.property_type,
+                                min_rooms=rooms_val,
+                                max_rooms=profile.property_preferences.max_rooms,
+                                has_balcony=profile.property_preferences.has_balcony,
+                                has_parking=profile.property_preferences.has_parking
+                            )
+                        profile.answered_categories.add(QuestionCategory.ROOMS)
                 except: pass
 
             # Sync answered categories
@@ -247,6 +265,7 @@ class ProcessUserMessageUseCase:
             if extracted_info.get("social_amenities") is not None:
                 profile.social_amenities = extracted_info["social_amenities"]
                 profile.answered_categories.add(QuestionCategory.SOCIAL_AMENITIES)
+                self.logger.info(f"Updated social amenities: {profile.social_amenities}")
             
             if extracted_info.get("purchase_purpose"):
                 profile.purchase_purpose = extracted_info["purchase_purpose"]
@@ -258,8 +277,11 @@ class ProcessUserMessageUseCase:
                  pass # Budget update is complex, handled by value object logic if needed. 
                  # For now, let's just note it. The Budget value object logic is separate.
 
+            return warnings
+
         except Exception as e:
             self.logger.error(f"Error in _update_profile_from_message: {str(e)}", exc_info=True)
+            return []
 
     def _extract_all_info(self, profile: UserProfile, message: str) -> None:
         """Simple manual extraction fallback (optional since LLM does the main work)."""
@@ -431,33 +453,24 @@ class ProcessUserMessageUseCase:
         
         # 1. ZORUNLU (Mandatory) - Agent 2'ye geçiş için şart
         if not profile.name:
-            missing.append("isim (zorunlu)")
+            missing.append("isim")
         if not profile.surname:
-            missing.append("soyisim (zorunlu)")
+            missing.append("soyisim")
         if not profile.profession:
-            missing.append("meslek (zorunlu)")
+            missing.append("meslek")
         if not profile.estimated_salary:
-            missing.append("maaş/gelir (zorunlu)")
-        if not profile.estimated_salary:
-            missing.append("maaş/gelir (zorunlu)")
+            missing.append("aylık gelir")
         
         # İletişim Bilgileri (Email Zorunlu, Telefon Sorulmalı)
         if not profile.email:
-            missing.append("iletişim bilgileri (e-posta ZORUNLU ve telefon birlikte sor - telefonun kolaylık için olduğunu belirt)")
+            missing.append("e-posta adresi ve telefon numarası")
         elif not profile.phone_number and not profile.has_answered_category(QuestionCategory.PHONE_NUMBER):
-            missing.append("telefon numarası (isteğe bağlı, iletişim kolaylığı için)")
-        if not profile.current_city:
-            missing.append("yaşadığı şehir (zorunlu)")
-        # Note: 'current_city' usually holds "City, District" but prompt asks for Semt specifically.
-        # We rely on extraction to put Semt in current_city or hometown.
+            missing.append("telefon numarası")
         
         if not profile.current_city:
-            missing.append("yaşadığı şehir (zorunlu)")
-        # Note: 'current_city' usually holds "City, District" but prompt asks for Semt specifically.
-        # We rely on extraction to put Semt in current_city or hometown.
+            missing.append("yaşadığı şehir ve semt")
         
         # 2. OPSİYONEL AMA SORULMALI (Nice to have before analysis)
-        # Phone moved to Contact Block above
         if not profile.property_preferences or not profile.property_preferences.min_rooms:
             missing.append("istenen oda sayısı")
         if not profile.marital_status:
@@ -466,19 +479,19 @@ class ProcessUserMessageUseCase:
         # 3. DURUMA BAĞLI ZORUNLU (Conditional)
         # Eğer evli ise çocuk durumu sorulmalı
         if profile.marital_status and "evli" in profile.marital_status.lower() and profile.has_children is None:
-            missing.append("çocuk sayısı")
+            missing.append("çocuk durumu")
         
         # 4. SORULMASI ZORUNLU (Must Ask - Even if answer is 'None')
         # Hometown (nereli olduğu)
         if not profile.hometown:
-             missing.append("memleket/nereli olduğu")
+             missing.append("memleket")
 
         if not profile.has_answered_category(QuestionCategory.SOCIAL_AMENITIES):
-             missing.append("sosyal alan tercihleri (spor salonu, basketbol sahası, yürüyüş parkuru, havuz vb.)")
+             missing.append("sosyal alan tercihleri")
         
         # Satın Alma Amacı (Yatırım mı Oturum mu?)
         if not profile.purchase_purpose:
-             missing.append("satın alma amacı (yatırım/oturum)")
+             missing.append("satın alma amacı")
 
         return missing
     
@@ -493,9 +506,17 @@ class ProcessUserMessageUseCase:
                 self.logger.info("Executing QuestionAgent for Discovery Phase")
                 agent_result = await self.question_agent.execute(profile, conversation, missing)
                 
-                msg = agent_result.get("message", "").strip()
-                q = agent_result.get("question", "").strip()
+                msg = (agent_result.get("message") or "").strip()
+                q = (agent_result.get("question") or "").strip()
                 
+                # REPETITION GUARD
+                # Check if 'q' (the question) was already asked recently or if the user already answered it logic
+                recent_assistant_msgs = [m.content for m in conversation.messages if m.role.value == 'assistant'][-3:]
+                if any(q in prev for prev in recent_assistant_msgs):
+                     self.logger.warning(f"Prevented repetitive question: {q}")
+                     # Fallback to general encouragement or next missing item
+                     q = "" 
+
                 if q:
                     # Defensive check: If question is already in message (case-insensitive), don't append it again
                     if q.lower() in msg.lower():
@@ -643,6 +664,7 @@ Yanıt:"""
             },
             "yasam_tarzi": {
                 "hobiler": profile.hobbies,
+                "notlar": profile.lifestyle_notes,
             },
             "konut_tercihleri": {
                 "hedef_sehir": (profile.location.city if profile.location else None) or profile.current_city or profile.hometown,
@@ -699,7 +721,7 @@ Yanıt:"""
             pdf_gen = PDFReportGenerator()
             pdf_gen.generate(crm_report, pdf_filepath)
             
-            return str(filepath)
+            return str(pdf_filepath)
             
         except Exception as e:
             self.logger.error(f"Failed to save CRM report: {e}", exc_info=True)

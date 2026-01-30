@@ -30,8 +30,8 @@ class Settings(BaseSettings):
     
     # LLM Configuration (DeepSeek/OpenAI Compatible)
     openai_api_key: str
-    openai_model: str = "deepseek-chat"
-    openai_base_url: str = "https://api.deepseek.com/v1"
+    openai_model: str = "gpt-4o-mini"
+    openai_base_url: str = "https://api.openai.com/v1"
     openai_temperature: float = 0.7
     openai_max_tokens: int = 1000
     
