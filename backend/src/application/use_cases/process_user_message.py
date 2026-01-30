@@ -140,8 +140,15 @@ class ProcessUserMessageUseCase:
                     except Exception as e:
                         self.logger.error(f"Email trigger failed: {e}")
                     
-                    # Final Closing Message - Samimi ve kişisel
-                    response = f"{profile.name} Bey/Hanım, sizinle sohbet etmek gerçekten keyifliydi! 😊\n\nTüm bilgilerinizi detaylıca not ettim ve raporunuz hazırlandı.\n\nEv arayışınızda size en uygun seçenekleri sunmak için sabırsızlanıyorum. Kendinize iyi bakın! 🏠"
+                    # Final Closing Message - Samimi ve kişisel (Cinsiyet algılama)
+                    # Yaygın Türk kadın isimleri
+                    female_names = ["emine", "ayşe", "fatma", "hatice", "zeynep", "elif", "meryem", "zehra", "sultan", "hacer", "cemile", "hanife", "havva", "şerife", "rabia", "döndü", "durdu", "ümmü", "gülsüm", "esra", "büşra", "merve", "betül", "seda", "gamze", "derya", "özlem", "serpil", "sevgi", "sevda", "songül", "gül", "gülden", "gülay", "nurcan", "nuray", "nuran", "nurcihan", "canan", "dilek", "filiz", "hülya", "sibel", "pınar", "ebru", "asuman", "aslı", "arzum", "arzu", "deniz", "yasemin", "nilüfer", "nilgün", "mine", "mehtap", "meltem", "melisa", "melissa", "defne", "ilknur", "ilkay", "ilayda", "irem", "irmak", "beren", "selin", "selinay", "su", "ada", "nehir", "derin", "lara", "maya", "mira", "naz", "nazlı", "cansu", "cemre", "damla", "ece", "ezgi", "gizem", "hazal", "ipek", "kübra", "melis", "nisa", "nurgül", "rümeysa", "sude", "tuğba", "yağmur", "zeynep", "zübeyde"]
+                    
+                    name_lower = (profile.name or "").lower().strip()
+                    is_female = name_lower in female_names
+                    honorific = "Hanım" if is_female else "Bey"
+                    
+                    response = f"{profile.name} {honorific}, sizinle sohbet etmek gerçekten çok keyifliydi! 😊\n\nHayalinizdeki evi bulmak için tüm bilgilerinizi özenle not ettim. Sizin için en uygun seçenekleri araştırıyorum.\n\nYeni yuvanızda mutlu günler geçirmenizi dilerim. Kendinize çok iyi bakın! 🏠✨"
 
 
             else:
@@ -520,8 +527,26 @@ class ProcessUserMessageUseCase:
                      q = "" 
 
                 if q:
-                    # Defensive check: If question is already in message (case-insensitive), don't append it again
-                    if q.lower() in msg.lower():
+                    # IMPROVED DEDUPLICATION: Check if question is already in message
+                    # Method 1: Direct substring check
+                    q_clean = q.lower().strip().rstrip("?")
+                    msg_clean = msg.lower()
+                    
+                    # Method 2: Check if same question words appear in message
+                    q_words = set(q_clean.split())
+                    # Find question sentences in message (sentences ending with ?)
+                    msg_questions = [s.strip() for s in msg.split("?") if s.strip()]
+                    
+                    is_duplicate = False
+                    for mq in msg_questions:
+                        mq_words = set(mq.lower().split())
+                        # If 70% of question words are in a message question, it's a duplicate
+                        if q_words and len(q_words & mq_words) / len(q_words) > 0.7:
+                            is_duplicate = True
+                            self.logger.warning(f"Duplicate question detected: '{q}' already in message")
+                            break
+                    
+                    if q_clean in msg_clean or is_duplicate:
                         response = msg
                     else:
                         response = f"{msg} {q}"
@@ -529,6 +554,7 @@ class ProcessUserMessageUseCase:
                     response = msg or "Sohbetimiz için çok teşekkürler."
                 
                 return response
+
 
             # PHASE 2: Guidance (Yönlendirme)
             history = self._get_history(conversation, 8)
