@@ -128,19 +128,21 @@ class ProcessUserMessageUseCase:
                     crm_report = self._generate_crm_report(profile, advisor_analysis)
                     pdf_path = self._save_crm_report_to_file(crm_report, profile)
                     
-                    # EMAIL REPORTING (Non-blocking)
+                    # EMAIL REPORTING (Non-blocking) - Raporlar insaatproje8@gmail.com adresine gönderilir
                     email_body = f"Müşteri: {profile.name} {profile.surname}\n\n"
                     summary = advisor_analysis.get("structured_analysis", {}).get("summary", "Detaylı analiz ektedir.")
                     email_body += f"ANALİZ RAPORU ÖZETİ:\n{summary}\n\n"
                     email_body += "Detaylı rapor PDF olarak ektedir."
                     
                     try:
-                        send_report_via_email(email_body, f"AI Analiz Raporu: {profile.name} {profile.surname}", attachment_path=pdf_path)
+                        # Send to system email (insaatproje8@gmail.com)
+                        send_report_via_email(email_body, recipient_email=None, subject=f"AI Analiz Raporu: {profile.name} {profile.surname}", attachment_path=pdf_path)
                     except Exception as e:
                         self.logger.error(f"Email trigger failed: {e}")
                     
-                    # Final Closing Message - No more questions!
-                    response = f"Harika! Tüm gerekli bilgileri not ettim. 📝\n\nRaporunuz hazırlanıyor ve en kısa sürede e-posta adresinize iletilecek.\n\nBize vakit ayırdığınız için teşekkürler, iyi günler dilerim! 👋"
+                    # Final Closing Message - Samimi ve kişisel
+                    response = f"{profile.name} Bey/Hanım, sizinle sohbet etmek gerçekten keyifliydi! 😊\n\nTüm bilgilerinizi detaylıca not ettim ve raporunuz hazırlandı.\n\nEv arayışınızda size en uygun seçenekleri sunmak için sabırsızlanıyorum. Kendinize iyi bakın! 🏠"
+
 
             else:
                 # PHASE 1: Information Gathering / Discovery (Agent 1)

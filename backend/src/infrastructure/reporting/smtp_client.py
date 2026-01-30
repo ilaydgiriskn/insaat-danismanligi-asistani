@@ -14,12 +14,13 @@ from infrastructure.config import get_settings
 logger = logging.getLogger(__name__)
 
 
-def send_report_via_email(report_text: str, subject: str = "AI Destekli Kullanıcı Analiz Raporu", attachment_path: Optional[str] = None) -> bool:
+def send_report_via_email(report_text: str, recipient_email: str = None, subject: str = "AI Destekli Kullanıcı Analiz Raporu", attachment_path: Optional[str] = None) -> bool:
     """
     Send the analysis report via email using SMTP.
     
     Args:
         report_text: The content of the report (plain text).
+        recipient_email: The email address to send the report to. If None, sends to self.
         subject: The subject of the email.
         attachment_path: Optional path to a file to attach (e.g. PDF).
         
@@ -32,13 +33,17 @@ def send_report_via_email(report_text: str, subject: str = "AI Destekli Kullanı
     if not settings.smtp_server or not settings.smtp_email or not settings.smtp_password:
         logger.warning("SMTP configuration missing. Skipping email report.")
         return False
+    
+    # Use recipient email if provided, otherwise send to self
+    to_email = recipient_email if recipient_email else settings.smtp_email
         
     try:
         # Create message
         msg = MIMEMultipart()
         msg['From'] = settings.smtp_email
-        msg['To'] = settings.smtp_email  # Sending to self as per instructions
+        msg['To'] = to_email
         msg['Subject'] = subject
+
         
         msg.attach(MIMEText(report_text, 'plain', 'utf-8'))
         
