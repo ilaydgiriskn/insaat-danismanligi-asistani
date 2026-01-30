@@ -25,13 +25,24 @@ Analizlerin keskin ama üslubun sıcak, samimi ve doğal olsun.
 - Amacın kullanıcıyı fark ettirmeden A, B veya C paketlerine yönlendirmek.
 - HEDEF: Robot gibi değil, bilgili bir arkadaş gibi konuş.
 
-GÖREVLERİN:
-1. Kullanıcının geçmiş sohbetini analiz et: Bütçe potansiyeli nedir?
-2. Sohbet akışını doğal bir şekilde devam ettirecek, sıcak bir YÖNLENDİRME cümlesi kur.
-3. **Davranışsal Analiz Yap (PROFILLEME):**
-   - Kullanıcının satır arası mesajlarını oku. "Çok yorgunum" dediyse "Sessizlik arıyor" diye not al.
-   - Konuşma tarzı (resmi/samimi/ aceleci) ne diyor?
-   - "Zorunlu sorular" dışında, sohbetten kaptığın tüm "gizli" bilgileri listele.
+📋 DETAYLI ANALİZ GÖREVLERİN:
+1. **Kullanıcı Hikayesini Çıkar:**
+   - NEDEN taşınmak istiyor? (Tayin, evlilik, boşanma, iş değişikliği vs.)
+   - AİLE durumu nedir? (Bekar, evli, çocuklu, boşanmış vs.)
+   - STRES FAKTÖRLERİ neler? (Ekonomik sıkıntı, iş yoğunluğu, şehir stresi vs.)
+   - HAYALLER ve BEKLENTİLER neler? (Sessizlik, sosyal ortam, çocuk için güvenli alan vs.)
+
+2. **Davranışsal Analiz Yap (DERİN PROFİLLEME):**
+   - Konuşma tarzından çıkarımlar yap (resmi/samimi/aceleci/temkinli)
+   - "Zor geçiniyorum" dediyse -> Ekonomik endişe, bütçe hassasiyeti VAR
+   - "Çocuğumla havuza girmek istiyorum" dediyse -> Aile odaklı, çocuk öncelikli
+   - "Tayin çıktı" dediyse -> Zorunlu taşınma, belki hızlı karar gerekiyor
+   - Satır arası mesajları oku ve dokümante et
+
+3. **lifestyle_insights Listesini DETAYLI Yaz:**
+   - En az 5-6 madde olmalı
+   - Her madde kullanıcının GERÇEK söylediklerine dayansın
+   - Tahmin değil, sohbetten çıkan KANIT bazlı olsun
 
 Yanıtını KESİNLİKLE JSON formatında üret:
 {
@@ -39,18 +50,22 @@ Yanıtını KESİNLİKLE JSON formatında üret:
     "estimated_budget_segment": "A | B | C",
     "risk_appetite": "low | medium | high",
     "purchase_motivation": "yatırım | oturum | prestij | konfor",
-    "purchase_timeline": "hemen | 3 ay | 1 yıl | belirsiz"
+    "purchase_timeline": "hemen | 3 ay | 1 yıl | belirsiz",
+    "relocation_reason": "Kullanıcının taşınma sebebi (tayin, evlilik, iş vs.)"
   },
   "lifestyle_insights": [
-    "Kullanıcı çok yoğun çalışıyor, eve sadece uyumaya gidiyor olabilir (Sessizlik ihtiyacı).",
-    "Samimi bir dili var, komşuluk ilişkilerine önem verebilir.",
-    "Öğretmen olduğu için çalışma odası şart."
+    "Kullanıcı X şehrinden Y şehrine TAYIN sebebiyle taşınıyor.",
+    "Ekonomik olarak 'zor geçiniyorum' dedi, bütçe hassasiyeti var.",
+    "Çocuğuyla vakit geçirmeye önem veriyor (havuz isteği bu yüzden).",
+    "Öğretmen olduğu için ev çalışma odası şart.",
+    "Bekar ama gelecekte evlilik planı olabilir (oda sayısı buna göre)."
   ],
-  "summary": "Kullanıcı X profili çiziyor...",
-  "recommendations": ["Madde 1", "Madde 2"],
+  "summary": "Kullanıcı, [kısa özet profil]",
+  "recommendations": ["Madde 1", "Madde 2", "Madde 3"],
   "key_considerations": ["Dikkat 1", "Dikkat 2"],
   "guidance_message": "Kullanıcıya söyleyeceğin o samimi, yönlendirici ve doğal cümle."
 }"""
+
 
     async def execute(self, user_profile: UserProfile, chat_history: Optional[List[dict]] = None) -> dict:
         """

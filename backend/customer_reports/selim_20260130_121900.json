@@ -1,0 +1,63 @@
+{
+  "rapor_tarihi": "2026-01-30T12:19:00.922575",
+  "musteri_bilgileri": {
+    "isim": "Selim",
+    "telefon": null,
+    "email": "selim@gmail.com",
+    "memleket": "Urfa"
+  },
+  "profesyonel_bilgiler": {
+    "meslek": "Bilgisayar Mühendisi",
+    "tahmini_maas": "60000"
+  },
+  "aile_bilgileri": {
+    "medeni_durum": "bekar",
+    "cocuk_var_mi": null,
+    "aile_buyuklugu": null
+  },
+  "yasam_tarzi": {
+    "hobiler": [],
+    "notlar": "Burası yazın çok sıcak, sevmiyorum."
+  },
+  "konut_tercihleri": {
+    "hedef_sehir": "Gaziantep",
+    "hedef_ilce": null,
+    "oda_sayisi": 4,
+    "ev_tipi": "apartment",
+    "sosyal_alanlar": [
+      "yürüyüş parkuru"
+    ],
+    "satin_alma_amaci": "Oturum"
+  },
+  "butce_analizi": {
+    "belirtilen_butce": null,
+    "para_birimi": "TRY",
+    "tavsiye_edilen_segment": "B",
+    "guven_seviyesi": "medium",
+    "ust_segmente_gecis_mumkun": null,
+    "ek_butce_gerekli": null
+  },
+  "ai_degerlendirmesi": {
+    "risk_istahi": "medium",
+    "satin_alma_motivasyonu": "konfor",
+    "satin_alma_zamani": "belirsiz",
+    "ozet": "Selim, bilgisayar mühendisi olarak Urfa'dan Gaziantep'e taşınmayı düşünüyor. Bekar ve geniş bir salona sahip, sosyal alanları olan bir ev arıyor.",
+    "tavsiyeler": [
+      "Gaziantep'teki semtlerin sosyal olanaklarını araştırarak karar vermenizi öneririm.",
+      "Ev arayışınızda bütçenizi göz önünde bulundurarak, gelir düzeyinize uygun seçeneklere odaklanın.",
+      "Yürüyüş parkuru olan bölgeleri tercih etmek, sağlıklı yaşam için iyi bir başlangıç olacaktır."
+    ],
+    "dikkat_noktalari": [
+      "Yeni evin sosyal alanlar açısından yeterli olup olmadığını değerlendirin.",
+      "Evin konumu, işinize olan uzaklığı da önemli bir faktör olabilir."
+    ],
+    "yasam_tarzi_notlari": [
+      "Selim, Urfa'dan Gaziantep'e taşınmayı istiyor çünkü Urfa'nın sıcak yazlarını sevmiyor.",
+      "Aylık geliri 60k bandında ancak bu seviyeyi tatmin edici bulmuyor.",
+      "Geniş bir salona sahip 4+1 bir ev arayışında, misafir ağırlamaya önem veriyor.",
+      "Yürüyüş parkuru gibi sosyal alanlara ihtiyaç duyuyor.",
+      "Bekar olduğu için sosyal yaşamına ve iletişime önem veriyor."
+    ]
+  },
+  "status": "PROFIL_TAMAMLANDI_EMLAKCIYA_GONDERILDI"
+}
