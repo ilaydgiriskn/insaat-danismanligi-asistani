@@ -144,6 +144,9 @@ class SQLAlchemyUserRepository(IUserRepository):
         model.answered_categories = [cat.value for cat in entity.answered_categories]
         model.social_amenities = entity.social_amenities or []
         model.purchase_purpose = entity.purchase_purpose
+        model.savings_info = entity.savings_info
+        model.credit_usage = entity.credit_usage
+        model.exchange_preference = entity.exchange_preference
         model.lifestyle_notes = entity.lifestyle_notes
         
         # Budget
@@ -233,10 +236,11 @@ class SQLAlchemyUserRepository(IUserRepository):
             has_children=model.has_children,
             estimated_salary=model.estimated_salary,
             hobbies=model.hobbies or [],
-            
-            # New Fields
             social_amenities=model.social_amenities or [],
             purchase_purpose=model.purchase_purpose,
+            savings_info=model.savings_info,
+            credit_usage=model.credit_usage,
+            exchange_preference=model.exchange_preference,
             lifestyle_notes=model.lifestyle_notes,
             
             budget=budget,

@@ -120,11 +120,12 @@ class PDFReportGenerator:
             profile_data = [
                 ["İsim Soyisim:", client_info.get("isim", "-")],
                 ["İletişim:", f"{client_info.get('telefon', '-')} / {client_info.get('email', '-')}"],
-                ["Şehir/Semt:", client_info.get("memleket", "-")],
+                ["Memleket:", client_info.get("memleket", "-")],
+                ["Yaşadığı Yer:", f"{client_info.get('yasadigi_sehir', '-')} / {client_info.get('yasadigi_ilce', '-')}"],
                 ["Meslek:", prof_info.get("meslek", "-")],
                 ["Tahmini Gelir:", prof_info.get("tahmini_maas", "-")],
                 ["Medeni Durum:", family_info.get("medeni_durum", "-")],
-                ["Aile Yapısı:", "Çocuk Var" if family_info.get("cocuk_var_mi") is True else ("Çocuk Yok" if family_info.get("cocuk_var_mi") is False else "Belirtilmedi")]
+                ["Aile Yapısı:", "Çocuk Var" if family_info.get("cocuk_var_mi") is True else ("Ço cuk Yok" if family_info.get("cocuk_var_mi") is False else "Belirtilmedi")]
             ]
             
             self._add_table(story, profile_data)
@@ -140,6 +141,9 @@ class PDFReportGenerator:
                 ["Konut Tipi:", prefs.get("ev_tipi", "-")],
                 ["Satın Alma Amacı:", prefs.get("satin_alma_amaci") or "Belirtilmedi"],
                 ["Sosyal Alanlar:", ", ".join(prefs.get("sosyal_alanlar", [])) if prefs.get("sosyal_alanlar") else "Talep Belirtilmedi"],
+                ["Birikim Durumu:", prefs.get("birikim_durumu") or "Belirtilmedi"],
+                ["Kredi Kullanımı:", prefs.get("kredi_kullanimi") or "Belirtilmedi"],
+                ["Takas Tercihi:", prefs.get("takas_tercihi") or "Belirtilmedi"],
                 ["Bütçe Limiti:", f"{budget.get('belirtilen_butce', '-')} {budget.get('para_birimi', '')}"],
                 ["Önerilen Segment:", budget.get("tavsiye_edilen_segment", "-")]
             ]

@@ -58,6 +58,9 @@ class UserModel(Base):
     # New Fields
     social_amenities: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     purchase_purpose: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    savings_info: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    credit_usage: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    exchange_preference: Mapped[str | None] = mapped_column(String(500), nullable=True)
     lifestyle_notes: Mapped[str | None] = mapped_column(String, nullable=True)
     
     # Budget

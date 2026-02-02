@@ -76,12 +76,21 @@ class LangChainService(ILLMService):
             
             response = await self.llm.ainvoke(messages)
             
-            # Parse JSON response
+            # Parse JSON response - Enhanced for deepseek-thinking model
+            content = response.content.strip()
+            
+            # DeepSeek-Thinking model may include <think>...</think> blocks
+            # Extract only the JSON part
+            if "<think>" in content and "</think>" in content:
+                # Remove thinking blocks
+                import re
+                content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
+            
+            # Try direct JSON parse first
             try:
-                return json.loads(response.content)
+                return json.loads(content)
             except json.JSONDecodeError:
                 # Try to extract JSON from response
-                content = response.content.strip()
                 
                 # Remove markdown code blocks if present
                 if content.startswith("```json"):
@@ -91,7 +100,19 @@ class LangChainService(ILLMService):
                 if content.endswith("```"):
                     content = content[:-3]
                 
-                return json.loads(content.strip())
+                content = content.strip()
+                
+                # Try to find JSON object in the content
+                # Look for first { and last }
+                start_idx = content.find('{')
+                end_idx = content.rfind('}')
+                
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    json_str = content[start_idx:end_idx+1]
+                    return json.loads(json_str)
+                
+                # If still fails, try the original content
+                return json.loads(content)
                 
         except Exception as e:
             self.logger.error(
@@ -99,3 +120,4 @@ class LangChainService(ILLMService):
                 exc_info=True
             )
             raise
+

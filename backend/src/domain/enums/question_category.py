@@ -21,6 +21,9 @@ class QuestionCategory(str, Enum):
     ROOMS = "rooms"
     SOCIAL_AMENITIES = "social_amenities"
     PURCHASE_PURPOSE = "purchase_purpose"
+    SAVINGS = "savings"
+    CREDIT_USAGE = "credit_usage"
+    EXCHANGE = "exchange"
 
     def __str__(self) -> str:
         return self.value

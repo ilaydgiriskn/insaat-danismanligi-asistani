@@ -83,6 +83,9 @@ GÖREV: Yukarıdaki kurallara göre doğal bir sonraki soruyu veya kapanış cü
             parts.append(f"- Oda Sayısı: {profile.property_preferences.min_rooms}")
         if profile.social_amenities: parts.append(f"- Sosyal Alanlar: {', '.join(profile.social_amenities)}")
         if profile.purchase_purpose: parts.append(f"- Satın Alma Amacı: {profile.purchase_purpose}")
+        if profile.savings_info: parts.append(f"- Birikim: {profile.savings_info}")
+        if profile.credit_usage: parts.append(f"- Kredi: {profile.credit_usage}")
+        if profile.exchange_preference: parts.append(f"- Takas: {profile.exchange_preference}")
         return "\n".join(parts) if parts else "Hiçbir bilgi yok."
 
     

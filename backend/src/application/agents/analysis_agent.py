@@ -64,8 +64,13 @@ Yanıtını KESİNLİKLE JSON formatında üret:
   "recommendations": ["Madde 1", "Madde 2", "Madde 3"],
   "key_considerations": ["Dikkat 1", "Dikkat 2"],
   "guidance_message": "Kullanıcıya söyleyeceğin o samimi, yönlendirici ve doğal cümle."
-}"""
+}
 
+⚠️ CRITICAL: 
+- NO comments (no //) in JSON
+- NO trailing commas
+- VALID JSON only
+"""
 
     async def execute(self, user_profile: UserProfile, chat_history: Optional[List[dict]] = None) -> dict:
         """
@@ -192,8 +197,9 @@ KULLANICI PROFİLİ:
 
             # Cleanup potential markdown artifacts (Robust Regex)
             clean_json = response.strip()
-            # Try to find JSON block
-            json_match = re.search(r'```json\s*(\{.*?\})\s*```', clean_json, re.DOTALL)
+            
+            # Try to find JSON block in markdown code fence
+            json_match = re.search(r'```(?:json)?\s*({.*?})\s*```', clean_json, re.DOTALL)
             if json_match:
                 clean_json = json_match.group(1)
             else:
@@ -202,8 +208,22 @@ KULLANICI PROFİLİ:
                 end = clean_json.rfind("}")
                 if start != -1 and end != -1:
                     clean_json = clean_json[start:end+1]
+            
+            # Remove comments (// style) which break JSON
+            clean_json = re.sub(r'//.*?\n', '\n', clean_json)
+            
+            # Remove trailing commas before } or ]
+            clean_json = re.sub(r',\s*([}\]])', r'\1', clean_json)
+            
+            # Try to parse
+            try:
+                return json.loads(clean_json)
+            except json.JSONDecodeError as je:
+                # Log the problematic JSON for debugging
+                self.logger.error(f"JSON Parse Error: {je}")
+                self.logger.error(f"Cleaned JSON: {clean_json[:500]}...")  # First 500 chars
+                return None
                 
-            return json.loads(clean_json)
         except Exception as e:
             self._log_error(f"Structured analysis failed: {str(e)}")
             return None

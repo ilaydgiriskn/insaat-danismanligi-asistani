@@ -1,26 +1,42 @@
+"""
+Database Reset Script
+Run this to drop all tables and rebuild the schema fresh.
+"""
+
 import asyncio
 import sys
-import os
+sys.path.append('src')
 
-# Add src to path
-sys.path.append(os.path.join(os.getcwd(), 'src'))
+from infrastructure.database.session import engine, Base
+from infrastructure.config import get_logger
 
-from infrastructure.database.session import get_engine, Base, init_db
-from infrastructure.config import get_settings
+logger = get_logger(__name__)
 
 async def reset_database():
-    print("Veritabanı şeması güncelleniyor...")
-    engine = get_engine()
-    settings = get_settings()
-    print(f"Bağlanılan adres: {settings.database_url}")
-    
-    async with engine.begin() as conn:
-        print("Mevcut tablolar siliniyor...")
-        await conn.run_sync(Base.metadata.drop_all)
-        print("Yeni tablolar oluşturuluyor...")
-        await conn.run_sync(Base.metadata.create_all)
-    
-    print("✅ İşlem tamamlandı! Veritabanı yeni alanlarla (email, meslek, hobiler vb.) hazır.")
+    """Drop all tables and recreate them."""
+    try:
+        logger.info("🔥 Dropping all tables...")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+        logger.info("✅ All tables dropped")
+        
+        logger.info("🏗️ Creating fresh tables...")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("✅ Fresh database ready!")
+        
+    except Exception as e:
+        logger.error(f"❌ Error: {e}")
+        raise
+    finally:
+        await engine.dispose()
 
 if __name__ == "__main__":
-    asyncio.run(reset_database())
+    print("\n⚠️  WARNING: This will DELETE ALL DATA in the database!\n")
+    response = input("Are you sure? Type 'yes' to continue: ")
+    
+    if response.lower() == 'yes':
+        asyncio.run(reset_database())
+        print("\n✅ Database has been reset successfully!\n")
+    else:
+        print("\n❌ Cancelled.\n")

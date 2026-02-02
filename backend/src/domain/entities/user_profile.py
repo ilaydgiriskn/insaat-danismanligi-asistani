@@ -36,6 +36,9 @@ class UserProfile:
     estimated_salary: Optional[str] = None
     social_amenities: list[str] = field(default_factory=list)
     purchase_purpose: Optional[str] = None
+    savings_info: Optional[str] = None  # Birikim durumu
+    credit_usage: Optional[str] = None  # Kredi kullanacak mı
+    exchange_preference: Optional[str] = None  # Takas düşünüyor mu
     lifestyle_notes: Optional[str] = None
     
     # Preferences (Value Objects)

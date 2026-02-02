@@ -53,14 +53,39 @@ class ProcessUserMessageUseCase:
     async def execute(self, session_id: str, user_message: str) -> dict:
         """Process message with strategic advisor logic."""
         try:
-            profile = await self._get_or_create_profile(session_id)
-            conversation = await self._get_or_create_conversation(profile.id)
+            self.logger.info(f"🔄 Processing message from session: {session_id}")
+            
+            # Step 1: Get or create profile and conversation
+            try:
+                profile = await self._get_or_create_profile(session_id)
+                self.logger.info(f"✅ Profile loaded/created: {profile.name or 'New User'}")
+            except Exception as e:
+                self.logger.error(f"❌ Failed to get/create profile: {str(e)}", exc_info=True)
+                raise Exception(f"Database error (profile): {str(e)}")
+            
+            try:
+                conversation = await self._get_or_create_conversation(profile.id)
+                self.logger.info(f"✅ Conversation loaded/created")
+            except Exception as e:
+                self.logger.error(f"❌ Failed to get/create conversation: {str(e)}", exc_info=True)
+                raise Exception(f"Database error (conversation): {str(e)}")
             
             conversation.add_user_message(user_message)
             
-            # 1. PARALLEL EXECUTION: Extraction & Analysis
-            # Run LLM extraction and Advisor Analysis at the same time to save 3-5 seconds.
+            # 2. OPTIMIZED EXECUTION
+            self.logger.info("🔄 Starting extraction...")
             history_str = self._get_history(conversation, 5)
+            
+            # Step 1: Always extract info
+            warnings = await self._update_profile_from_message(profile, user_message, history_str)
+            if isinstance(warnings, Exception):
+                self.logger.error(f"❌ Profile extraction failed: {str(warnings)}", exc_info=warnings)
+                warnings = []
+
+            # Step 2: Analysis ONLY if profile is mature enough
+            # Calculate profile completion (approx 14 mandatory fields)
+            answered_count = len(profile.answered_categories) if profile.answered_categories else 0
+            profile_completion = answered_count / 14.0
             
             # Prepare Analysis Input (using current profile state)
             history_messages = conversation.get_recent_messages(20)
@@ -70,12 +95,19 @@ class ProcessUserMessageUseCase:
                     history_dicts.append(m.to_dict())
                 else:
                     history_dicts.append({"role": getattr(m, 'role', 'user'), "content": getattr(m, 'content', str(m))})
-            
-            # Execute both concurrently
-            warnings, advisor_analysis = await asyncio.gather(
-                self._update_profile_from_message(profile, user_message, history_str),
-                self.analysis_agent.execute(profile, chat_history=history_dicts)
-            )
+
+            advisor_analysis = {}
+            if profile_completion > 0.4: # >40% complete (~6 fields answered)
+                self.logger.info(f"🔄 Profile maturity {profile_completion:.1f} > 0.4 -> Running Analysis Agent")
+                try:
+                    advisor_analysis = await self.analysis_agent.execute(profile, chat_history=history_dicts)
+                except Exception as e:
+                    self.logger.error(f"❌ Advisor analysis failed: {str(e)}", exc_info=e)
+                    advisor_analysis = self.analysis_agent._fallback_guidance(profile)
+            else:
+                 self.logger.info(f"⏩ Profile maturity {profile_completion:.1f} < 0.4 -> Skipping Analysis Agent (Performance Optimization)")
+                 advisor_analysis = self.analysis_agent._fallback_guidance(profile)
+
             
             # IMMEDIATE VALIDATION CHECK
             if warnings and "phone_invalid" in warnings:
@@ -94,8 +126,19 @@ class ProcessUserMessageUseCase:
             
             self.logger.info(f"Advisor Analysis result: {json.dumps(advisor_analysis.get('structured_analysis'), ensure_ascii=False) if advisor_analysis.get('structured_analysis') else 'Heuristic/Fallback'}")
             
-            await self.user_repo.update(profile)
-            await self.conversation_repo.update(conversation)
+            # Update database with retry logic
+            try:
+                await self.user_repo.update(profile)
+                self.logger.info("✅ Profile updated in database")
+            except Exception as e:
+                self.logger.error(f"❌ Failed to update profile: {str(e)}", exc_info=True)
+                # Continue anyway, we can retry later
+            
+            try:
+                await self.conversation_repo.update(conversation)
+                self.logger.info("✅ Conversation updated in database")
+            except Exception as e:
+                self.logger.error(f"❌ Failed to update conversation: {str(e)}", exc_info=True)
             
             # 3. Check for Phase Transition (Agent 2)
             # Get missing info strict check
@@ -111,22 +154,24 @@ class ProcessUserMessageUseCase:
             if is_ready:
                 # PHASE 2: Profile Complete
                 
-                # Check if we ALREADY transitioned (to avoid infinite loop)
+                # Check if we ALREADY sent final message (to avoid duplicate emails)
                 last_msg = conversation.get_last_assistant_message()
-                transition_phrase = "Raporunuz hazırlanıyor"
+                final_message_sent = last_msg and ("iletişime geçecektir" in last_msg.content or "Teşekkürler" in last_msg.content)
                 
-                if last_msg and transition_phrase in last_msg.content:
-                    # Already transitioned -> Session Closed
-                    self.logger.info("Session already closed.")
-                    response = "Bütün bilgileriniz alınmıştır. Raporunuz e-posta adresinize gönderilecektir. Teşekkürler! 👋"
+                if final_message_sent:
+                    # Session closed - always show same final message
+                    self.logger.info("Session already closed - showing final message again")
+                    response = "Harika! Sohbet için çok teşekkürler. Raporunuz oluşturuldu, ekibimiz en kısa sürede sizinle iletişime geçecektir. 🏠✨"
                     
                 else:
                     # FIRST TIME Transition -> FINAL CLOSING
-                    self.logger.info(f"Closing Session for: {profile.name}")
+                    self.logger.info(f"🔚 Closing Session for: {profile.name}")
                     
                     # CRM EXPORT: Silent background report
+                    self.logger.info("📊 Generating CRM report...")
                     crm_report = self._generate_crm_report(profile, advisor_analysis)
                     pdf_path = self._save_crm_report_to_file(crm_report, profile)
+                    self.logger.info(f"✅ PDF saved: {pdf_path}")
                     
                     # EMAIL REPORTING (Non-blocking) - Raporlar insaatproje8@gmail.com adresine gönderilir
                     email_body = f"Müşteri: {profile.name} {profile.surname}\n\n"
@@ -134,22 +179,40 @@ class ProcessUserMessageUseCase:
                     email_body += f"ANALİZ RAPORU ÖZETİ:\n{summary}\n\n"
                     email_body += "Detaylı rapor PDF olarak ektedir."
                     
+                    self.logger.info(f"📧 Sending email to insaatproje8@gmail.com...")
                     try:
                         # Send to system email (insaatproje8@gmail.com)
-                        send_report_via_email(email_body, recipient_email=None, subject=f"AI Analiz Raporu: {profile.name} {profile.surname}", attachment_path=pdf_path)
+                        result = send_report_via_email(email_body, recipient_email=None, subject=f"AI Analiz Raporu: {profile.name} {profile.surname}", attachment_path=pdf_path)
+                        if result:
+                            self.logger.info("✅ Email sent successfully!")
+                        else:
+                            self.logger.error("❌ Email send returned False")
                     except Exception as e:
-                        self.logger.error(f"Email trigger failed: {e}")
+                        self.logger.error(f"❌ Email trigger failed: {e}", exc_info=True)
                     
-                    # Final Closing Message - Samimi ve kişisel
-                    response = f"{profile.name}, sizinle sohbet etmek gerçekten çok keyifliydi! 😊\n\nHayalinizdeki evi bulmak için tüm bilgilerinizi özenle not ettim. Sizin için en uygun seçenekleri araştırıyorum.\n\nYeni yuvanızda mutlu günler geçirmenizi dilerim. Kendinize çok iyi bakın! 🏠✨"
+                    # Final Closing Message - Samimi ve profesyonel
+                    response = f"{profile.name}, sohbet ettiğimiz için çok teşekkür ederim! 😊\n\nTüm bilgilerinizi özenle not ettim. Raporunuz oluşturuldu, ekibimiz en kısa sürede sizinle iletişime geçecektir.\n\nYeni yuvanızda mutlu günler geçirmenizi dilerim! 🏠✨"
 
 
             else:
                 # PHASE 1: Information Gathering / Discovery (Agent 1)
-                response = await self._generate_response(profile, conversation, missing, advisor_analysis)
+                try:
+                    response = await self._generate_response(profile, conversation, missing, advisor_analysis)
+                    self.logger.info("✅ Response generated successfully")
+                except Exception as e:
+                    self.logger.error(f"❌ Failed to generate response: {str(e)}", exc_info=True)
+                    # Fallback to simple question
+                    if not profile.name:
+                        response = "Memnun oldum! Sizi hangi isimle tanıyabilirim?"
+                    elif not profile.profession:
+                        response = f"Harika {profile.name}! Ne iş yapıyorsunuz?"
+                    else:
+                        response = "Devam edelim! Biraz daha bilgi alabilir miyim?"
             
             conversation.add_assistant_message(response)
             await self.conversation_repo.update(conversation)
+            
+            self.logger.info(f"✅ Message processed successfully for session: {session_id}")
             
             return {
                 "response": response,
@@ -159,9 +222,21 @@ class ProcessUserMessageUseCase:
             }
             
         except Exception as e:
-            self.logger.error(f"Error: {e}", exc_info=True)
+            error_type = type(e).__name__
+            self.logger.error(f"❌ CRITICAL ERROR in execute() [{error_type}]: {str(e)}", exc_info=True)
+            
+            # Provide more specific error messages based on error type
+            if "timeout" in str(e).lower() or isinstance(e, asyncio.TimeoutError):
+                error_msg = "Bir aksaklık oldu (zaman aşımı). Lütfen tekrar deneyin."
+            elif "database" in str(e).lower() or "connection" in str(e).lower():
+                error_msg = "Veritabanı bağlantısında sorun var. Lütfen biraz sonra tekrar deneyin."
+            elif "api" in str(e).lower() or "quota" in str(e).lower():
+                error_msg = "AI servisi şu anda meşgul. Lütfen birkaç saniye sonra tekrar deneyin."
+            else:
+                error_msg = "Bir aksaklık oldu. Devam edelim mi?"
+                
             return {
-                "response": "Pardon, bir aksaklık oldu. Devam edelim mi?",
+                "response": error_msg,
                 "type": "error",
                 "is_complete": False,
             }
@@ -199,7 +274,18 @@ class ProcessUserMessageUseCase:
                 profile.answered_categories.add(QuestionCategory.HOMETOWN)
             if extracted_info.get("profession"): profile.profession = extracted_info["profession"]
             if extracted_info.get("marital_status"): profile.marital_status = extracted_info["marital_status"]
-            if extracted_info.get("has_children") is not None: profile.has_children = extracted_info["has_children"]
+            
+            # Sanitize has_children (LLM sometimes returns string "null" instead of None)
+            if extracted_info.get("has_children") is not None:
+                val = extracted_info["has_children"]
+                if val == "null" or val == "None" or val == "":
+                    profile.has_children = None
+                elif isinstance(val, bool):
+                    profile.has_children = val
+                elif isinstance(val, str):
+                    profile.has_children = val.lower() in ["true", "yes", "evet", "1"]
+                else:
+                    profile.has_children = bool(val)
             
             if extracted_info.get("hobbies"):
                 profile.hobbies = extracted_info["hobbies"]
@@ -272,6 +358,19 @@ class ProcessUserMessageUseCase:
             if extracted_info.get("purchase_purpose"):
                 profile.purchase_purpose = extracted_info["purchase_purpose"]
                 profile.answered_categories.add(QuestionCategory.PURCHASE_PURPOSE)
+            
+            # New Financial Questions (Optional answers, but must be asked)
+            if extracted_info.get("savings_info") is not None:
+                profile.savings_info = extracted_info["savings_info"]
+                profile.answered_categories.add(QuestionCategory.SAVINGS)
+            
+            if extracted_info.get("credit_usage") is not None:
+                profile.credit_usage = extracted_info["credit_usage"]
+                profile.answered_categories.add(QuestionCategory.CREDIT_USAGE)
+            
+            if extracted_info.get("exchange_preference") is not None:
+                profile.exchange_preference = extracted_info["exchange_preference"]
+                profile.answered_categories.add(QuestionCategory.EXCHANGE)
 
             # Update purchase_budget if explicitly provided
             if extracted_info.get("purchase_budget"):
@@ -463,14 +562,20 @@ class ProcessUserMessageUseCase:
         if not profile.estimated_salary:
             missing.append("aylık gelir")
         
-        # İletişim Bilgileri (Email Zorunlu, Telefon Sorulmalı)
-        if not profile.email:
-            missing.append("e-posta adresi ve telefon numarası")
-        elif not profile.phone_number and not profile.has_answered_category(QuestionCategory.PHONE_NUMBER):
-            missing.append("telefon numarası")
+        # İletişim Bilgileri (Opsiyonel - sormak için ama zorunlu değil)
+        # Email ve telefon artık zorunlu değil, sohbet bunlar olmadan da kapanabilir
+        # Sadece henüz sorulmadıysa sora:
+        contact_asked = profile.has_answered_category(QuestionCategory.EMAIL) or profile.email
+        if not contact_asked:
+            missing.append("iletişim bilgileri (e-posta ve telefon - opsiyonel)")
+
         
         if not profile.current_city:
             missing.append("yaşadığı şehir ve semt")
+        
+        # Hedef lokasyon (ev almak istediği yer) - ZORUNLU
+        if not profile.location or not profile.location.city:
+            missing.append("ev almak istediği şehir ve semt")
         
         # 2. OPSİYONEL AMA SORULMALI (Nice to have before analysis)
         if not profile.property_preferences or not profile.property_preferences.min_rooms:
@@ -488,13 +593,33 @@ class ProcessUserMessageUseCase:
         if not profile.hometown:
              missing.append("memleket")
 
-        # Sosyal Alanlar - MUTLAKA sorulmalı (SADECE kategori kontrolü - varsayılan [] olduğu için is not None çalışmaz)
-        if not profile.has_answered_category(QuestionCategory.SOCIAL_AMENITIES):
+        # Sosyal Alanlar - MUTLAKA sorulmalı
+        # Kategori işaretli VEYA liste dolu ise OK (OR kullan, LLM bazen yanlış işaretleyebiliyor)
+        social_category_answered = profile.has_answered_category(QuestionCategory.SOCIAL_AMENITIES)
+        social_has_values = profile.social_amenities and len(profile.social_amenities) > 0
+        
+        # Kategori işaretli veya liste doluysa OK say
+        if not (social_category_answered or social_has_values):
              missing.append("sosyal alan tercihleri")
+             self.logger.info(f"Social amenities check: category={social_category_answered}, has_values={social_has_values}, list={profile.social_amenities}")
         
         # Satın Alma Amacı (Yatırım mı Oturum mu?) - MUTLAKA değer olmalı
         if not profile.purchase_purpose:
              missing.append("satın alma amacı")
+        
+        # 5. YENİ FİNANSAL SORULAR (Must Ask - But Answer Can Be None)
+        # Birikim Durumu - Soru sorulmuş mu kontrol et (cevap None olabilir)
+        if not profile.has_answered_category(QuestionCategory.SAVINGS):
+            missing.append("birikim durumu")
+        
+        # Kredi Kullanımı - Soru sorulmuş mu kontrol et
+        if not profile.has_answered_category(QuestionCategory.CREDIT_USAGE):
+            missing.append("kredi kullanımı")
+        
+        # Takas Tercihi - Soru sorulmuş mu kontrol et
+        if not profile.has_answered_category(QuestionCategory.EXCHANGE):
+            missing.append("takas tercihi")
+
 
         return missing
     
@@ -547,7 +672,112 @@ class ProcessUserMessageUseCase:
                 else:
                     response = msg or "Sohbetimiz için çok teşekkürler."
                 
+                # DUPLICATE PHRASE REMOVAL - Remove repeated question phrases
+                # But ONLY if the field is already answered (don't prevent first-time questions)
+                duplicate_checks = {
+                    "ne iş yapıyorsunuz": profile.profession,
+                    "günlük hayatta ne iş": profile.profession,
+                    "mesleğiniz nedir": profile.profession,
+                    "oda sayısı nedir": profile.property_preferences and profile.property_preferences.min_rooms,
+                    "kaç oda": profile.property_preferences and profile.property_preferences.min_rooms,
+                    "medeni durum": profile.marital_status,
+                    "aylık gelir": profile.estimated_salary,
+                    "telefon numaranız": profile.phone_number,
+                    "e-posta adres": profile.email,
+                }
+                
+                response_lower = response.lower()
+                for phrase, answered_value in duplicate_checks.items():
+                    # Only remove if answered AND appears multiple times
+                    if answered_value:
+                        count = response_lower.count(phrase)
+                        if count > 1:
+                            # Keep only first occurrence
+                            first_pos = response_lower.find(phrase)
+                            second_pos = response_lower.find(phrase, first_pos + len(phrase))
+                            if second_pos > 0:
+                                # Find the sentence containing the second occurrence and remove it
+                                sentences = response.split("?")
+                                new_sentences = []
+                                found_first = False
+                                for s in sentences:
+                                    if phrase in s.lower():
+                                        if not found_first:
+                                            new_sentences.append(s)
+                                            found_first = True
+                                        else:
+                                            self.logger.warning(f"Removed duplicate phrase: '{phrase}' (already answered)")
+                                    else:
+                                        new_sentences.append(s)
+                                response = "?".join(new_sentences)
+                                if not response.endswith("?") and not response.endswith(".") and not response.endswith("!"):
+                                    response += "?"
+                
+                # POST-PROCESSING: Remove duplicate questions within the response
+                # Find all question sentences and remove duplicates
+                sentences = response.split("?")
+                if len(sentences) > 2:  # More than one question mark
+                    seen_questions = []
+                    cleaned_sentences = []
+                    for s in sentences:
+                        s_clean = s.strip()
+                        if not s_clean:
+                            continue
+                        s_words = set(s_clean.lower().split())
+                        is_dup = False
+                        for seen in seen_questions:
+                            seen_words = set(seen.lower().split())
+                            if s_words and seen_words:
+                                overlap = len(s_words & seen_words) / max(len(s_words), len(seen_words))
+                                if overlap > 0.5:  # Lowered to 50% for more aggressive dedup
+                                    is_dup = True
+                                    self.logger.warning(f"Removed duplicate question from response: '{s_clean}'")
+                                    break
+                        if not is_dup:
+                            cleaned_sentences.append(s_clean)
+
+                            seen_questions.append(s_clean)
+                    response = "? ".join(cleaned_sentences)
+                    if not response.endswith("?") and cleaned_sentences:
+                        response += "?"
+                
+                # ALREADY ANSWERED FILTER - Remove questions about fields that are already in profile
+                already_answered_keywords = []
+                if profile.property_preferences and profile.property_preferences.min_rooms:
+                    already_answered_keywords.extend(["oda sayısı", "kaç oda", "oda planı", "odal"])
+                if profile.marital_status:
+                    already_answered_keywords.extend(["medeni durum", "evli mi", "bekar mı"])
+                if profile.social_amenities and len(profile.social_amenities) > 0:
+                    already_answered_keywords.extend(["sosyal alan", "havuz", "spor salonu", "parkur"])
+                if profile.purchase_purpose:
+                    already_answered_keywords.extend(["yatırım mı", "oturum mu", "satın alma amacı"])
+                if profile.estimated_salary:
+                    already_answered_keywords.extend(["aylık gelir", "maaş", "kazanc"])
+                
+                # Check if response ends with a question about already-answered topic
+                if already_answered_keywords:
+                    response_lower = response.lower()
+                    for keyword in already_answered_keywords:
+                        if keyword in response_lower:
+                            # Find and remove the question sentence containing this keyword
+                            sentences = response.split("?")
+                            filtered = []
+                            for s in sentences:
+                                s_clean = s.strip()
+                                if s_clean and keyword not in s_clean.lower():
+                                    filtered.append(s_clean)
+                            if filtered:
+                                response = "? ".join(filtered)
+                                # Add ? back if response doesn't end with proper punctuation
+                                if not response.endswith("?") and not response.endswith(".") and not response.endswith("!"):
+                                    response += "?"
+
+                                self.logger.warning(f"Removed question about already-answered field: {keyword}")
+                                break
+                
                 return response
+
+
 
 
             # PHASE 2: Guidance (Yönlendirme)
@@ -670,10 +900,12 @@ Yanıt:"""
         return {
             "rapor_tarihi": datetime.now().isoformat(),
             "musteri_bilgileri": {
-                "isim": profile.name,
+                "isim": f"{profile.name} {profile.surname}" if profile.surname else profile.name,
                 "telefon": profile.phone_number,
                 "email": profile.email,
                 "memleket": profile.hometown,
+                "yasadigi_sehir": profile.current_city,
+                "yasadigi_ilce": profile.current_district if hasattr(profile, 'current_district') else None,
             },
             "profesyonel_bilgiler": {
                 "meslek": profile.profession,
@@ -695,6 +927,9 @@ Yanıt:"""
                 "ev_tipi": (profile.property_preferences.property_type.value if profile.property_preferences.property_type else None) if profile.property_preferences else None,
                 "sosyal_alanlar": profile.social_amenities if profile.social_amenities else [],
                 "satin_alma_amaci": profile.purchase_purpose,
+                "birikim_durumu": profile.savings_info,
+                "kredi_kullanimi": profile.credit_usage,
+                "takas_tercihi": profile.exchange_preference,
             },
             "butce_analizi": {
                 "belirtilen_butce": profile.budget.max_amount if profile.budget else None,

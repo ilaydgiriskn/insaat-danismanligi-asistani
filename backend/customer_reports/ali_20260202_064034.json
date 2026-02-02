@@ -1,0 +1,66 @@
+{
+  "rapor_tarihi": "2026-02-02T06:40:34.982692",
+  "musteri_bilgileri": {
+    "isim": "Ali",
+    "telefon": null,
+    "email": "ali@gmail.com",
+    "memleket": "Gaziantep"
+  },
+  "profesyonel_bilgiler": {
+    "meslek": "bilgisayar mühendisi",
+    "tahmini_maas": "16000"
+  },
+  "aile_bilgileri": {
+    "medeni_durum": "evli",
+    "cocuk_var_mi": true,
+    "aile_buyuklugu": null
+  },
+  "yasam_tarzi": {
+    "hobiler": [],
+    "notlar": null
+  },
+  "konut_tercihleri": {
+    "hedef_sehir": "Gaziantep",
+    "hedef_ilce": null,
+    "oda_sayisi": 5,
+    "ev_tipi": "apartment",
+    "sosyal_alanlar": [
+      "havuz",
+      "spor salonu"
+    ],
+    "satin_alma_amaci": "Oturum"
+  },
+  "butce_analizi": {
+    "belirtilen_butce": null,
+    "para_birimi": "TRY",
+    "tavsiye_edilen_segment": "B",
+    "guven_seviyesi": "medium",
+    "ust_segmente_gecis_mumkun": null,
+    "ek_butce_gerekli": null
+  },
+  "ai_degerlendirmesi": {
+    "risk_istahi": "medium",
+    "satin_alma_motivasyonu": "konfor",
+    "satin_alma_zamani": "belirsiz",
+    "ozet": "Ali, Gaziantep'te yaşayan bir bilgisayar mühendisi. Evli ve çocuklarıyla birlikte geniş bir yaşam alanı arayışında. Sosyal hayatına önem veriyor ve sağlıklı yaşam tarzını destekleyen imkanlar istiyor.",
+    "tavsiyeler": [
+      "Geniş bahçeli veya havuzlu ev seçeneklerini değerlendirin.",
+      "Sosyal alanları, spor salonu ve çocuk oyun alanları olan projelere göz atın.",
+      "Bütçenizi düşünerek, uygun fiyatlı ve konforlu evleri araştırın.",
+      "Evinizin konumunu, iş yerinize olan mesafesini göz önünde bulundurun.",
+      "Ev alım sürecinde ihtiyaçlarınızı netleştirerek, esnek olmaya çalışın."
+    ],
+    "dikkat_noktalari": [
+      "Havuz ve spor salonu gibi sosyal alanların ev fiyatına etkisini düşünün.",
+      "Evinizin bulunduğu bölgenin çocuklar için güvenli olup olmadığını kontrol edin."
+    ],
+    "yasam_tarzi_notlari": [
+      "Kullanıcı, Gaziantep'te yaşıyor ve burada geniş bir ev arayışında.",
+      "Evde 5 oda, geniş bir çalışma ve misafir odası istiyor, bu da sosyal hayatına önem verdiğini gösteriyor.",
+      "Çocuklarıyla vakit geçirebilmek için havuz arzusunda.",
+      "Eşiyle birlikte spor yapma isteği, sağlıklı yaşam tarzına önem verdiğini ortaya koyuyor.",
+      "Aylık geliri 16 bin lira civarında, bu da bütçesini düşünerek kararlar almak istediğini gösteriyor."
+    ]
+  },
+  "status": "PROFIL_TAMAMLANDI_EMLAKCIYA_GONDERILDI"
+}
