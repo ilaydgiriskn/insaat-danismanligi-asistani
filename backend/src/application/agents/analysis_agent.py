@@ -34,15 +34,34 @@ Analizlerin keskin ama üslubun sıcak, samimi ve doğal olsun.
 
 2. **Davranışsal Analiz Yap (DERİN PROFİLLEME):**
    - Konuşma tarzından çıkarımlar yap (resmi/samimi/aceleci/temkinli)
-   - "Zor geçiniyorum" dediyse -> Ekonomik endişe, bütçe hassasiyeti VAR
-   - "Çocuğumla havuza girmek istiyorum" dediyse -> Aile odaklı, çocuk öncelikli
-   - "Tayin çıktı" dediyse -> Zorunlu taşınma, belki hızlı karar gerekiyor
+   - "Zor geçiniyorum" dediyse → Ekonomik endişe, bütçe hassasiyeti VAR
+   - "Çocuğumla havuza girmek istiyorum" dediyse → Aile odaklı, çocuk öncelikli
+   - "Tayin çıktı" dediyse → Zorunlu taşınma, belki hızlı karar gerekiyor
    - Satır arası mesajları oku ve dokümante et
 
-3. **lifestyle_insights Listesini DETAYLI Yaz:**
-   - En az 5-6 madde olmalı
+3. **lifestyle_insights Listesini ÇOK DETAYLI Yaz:**
+   - **EN AZ 6-8 madde olmalı** (ZORUNLU!)
    - Her madde kullanıcının GERÇEK söylediklerine dayansın
    - Tahmin değil, sohbetten çıkan KANIT bazlı olsun
+   - **ÖRNEKLER (Bu seviyede detay bekliyorum):**
+     * "Kullanıcı Ankara'dan Gaziantep'e İŞ NEDENİYLE taşınıyor, bu zorunlu bir göç."
+     * "Bilgisayar mühendisi çift, evde ÇALIŞMA ODASI çok önemli."
+     * "40 altın birikimleri var, ancak kredi kullanmayı da düşünüyorlar - orta risk profili."
+     * "Evli ve 1 çocukları var, gelecekte daha fazla çocuk planı olabilir (4 oda tercihi)." 
+     * "Sosyal alan olarak özellikle SPOR SALONU talep etti, sağlıklı yaşam öncelikli."
+     * "Memleketi Kahramanmaraş, Gaziantep'e yakınlık avantaj olabilir (aile bağları)."
+     * "Maaşı 400k, yüksek gelir segmenti, kaliteli konut beklentisi var."
+     * "Araba takası düşünüyor, likiditesi kısıtlı olabilir, esnek ödeme planı gerekebilir."
+
+4. **recommendations (Stratejik Öneriler):**
+   - En az 3-4 madde, her biri somut ve eylem odaklı
+   - Örnek: "Gaziantep Şehitkamil bölgesinde, merkeze 15-20 dk mesafede, yeşil alanlı siteler önerilebilir."
+   - Örnek: "4+1 arıyor ama çocuk sayısı artabilir, esnek oda planı olan projeler ideal."
+
+5. **key_considerations (Dikkat Noktaları):**
+   - En az 2-3 madde, riskler ve hassas noktalar
+   - Örnek: "Kredi kullanımı sınırlı, bütçe planlaması kritik."
+   - Örnek: "Taşınma zorunlu, zaman baskısı olabilir, hazır konutlar öncelikli."
 
 Yanıtını KESİNLİKLE JSON formatında üret:
 {
@@ -54,15 +73,25 @@ Yanıtını KESİNLİKLE JSON formatında üret:
     "relocation_reason": "Kullanıcının taşınma sebebi (tayin, evlilik, iş vs.)"
   },
   "lifestyle_insights": [
-    "Kullanıcı X şehrinden Y şehrine TAYIN sebebiyle taşınıyor.",
-    "Ekonomik olarak 'zor geçiniyorum' dedi, bütçe hassasiyeti var.",
-    "Çocuğuyla vakit geçirmeye önem veriyor (havuz isteği bu yüzden).",
-    "Öğretmen olduğu için ev çalışma odası şart.",
-    "Bekar ama gelecekte evlilik planı olabilir (oda sayısı buna göre)."
+    "1. Kullanıcı X şehrinden Y şehrine İŞ/TAYİN sebebiyle taşınıyor.",
+    "2. Bilgisayar mühendisi çift, evde çalışma odası çok önemli.",
+    "3. 40 altın birikimleri var, kredi de kullanacaklar.",
+    "4. 1 çocukları var, gelecekte daha fazla olabilir.",
+    "5. Spor salonu isteği var, aktif yaşam tarzı.",
+    "6. Memleketi X, ailesi yakın şehirde avantaj.",
+    "7. Yüksek gelir (400k), kalite beklentisi var.",
+    "8. Araba takası düşünüyor, finansal esneklik gerekli."
   ],
-  "summary": "Kullanıcı, [kısa özet profil]",
-  "recommendations": ["Madde 1", "Madde 2", "Madde 3"],
-  "key_considerations": ["Dikkat 1", "Dikkat 2"],
+  "summary": "Kullanıcı, [kısa ama bilgilendirici özet - 2-3 cümle]",
+  "recommendations": [
+    "1. Şehitkamil/Şahinbey'de merkeze 15-20dk, yeşil alanlı siteler.",
+    "2. 4+1 arıyor, esnek oda planlı projeler ideal.",
+    "3. Spor salonu/havuzlu sosyal donatılı siteler."
+  ],
+  "key_considerations": [
+    "1. Kredi kullanımı sınırlı, bütçe planlaması kritik.",
+    "2. Taşınma zorunlu, hazır konutlar öncelikli."
+  ],
   "guidance_message": "Kullanıcıya söyleyeceğin o samimi, yönlendirici ve doğal cümle."
 }
 
@@ -192,7 +221,7 @@ KULLANICI PROFİLİ:
                 prompt=input_data,
                 system_message=self.AGENT2_SYSTEM_PROMPT,
                 temperature=0.3, # Low temperature for structured output
-                max_tokens=1500
+                max_tokens=2500  # Increased for detailed analysis
             )
 
             # Cleanup potential markdown artifacts (Robust Regex)

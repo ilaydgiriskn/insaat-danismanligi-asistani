@@ -157,34 +157,44 @@ class PDFReportGenerator:
             # 4.1 Executive Summary
             summary = ai_eval.get("ozet")
             if summary:
-                story.append(Paragraph("<b>Genel Değerlendirme:</b>", self.styles["TurkishBody"]))
+                story.append(Paragraph("<b>📊 Genel Değerlendirme:</b>", self.styles["TurkishBody"]))
                 story.append(Paragraph(summary, self.styles["AnalysisBox"]))
-            
-            # 4.2 Metrics
-            metrics_data = [
-                ["Risk İştahı:", ai_eval.get("risk_istahi", "-")],
-                ["Motivasyon:", ai_eval.get("satin_alma_motivasyonu", "-")],
-                ["Zamanlama:", ai_eval.get("satin_alma_zamani", "-")]
-            ]
-            self._add_table(story, metrics_data, col_widths=[100, 370])
-            
-            # 4.3 Recommendations
-            recs = ai_eval.get("tavsiyeler", [])
-            if recs:
-                story.append(Paragraph("<b>Önerilen Stratejiler:</b>", self.styles["TurkishBody"]))
-                for rec in recs:
-                    story.append(Paragraph(f"• {rec}", self.styles["TurkishBody"]))
                 story.append(Spacer(1, 10))
             
-            # 4.4 Key Considerations / Lifestyle
-            notes = ai_eval.get("yasam_tarzi_notlari", [])
-            considerations = ai_eval.get("dikkat_noktalari", [])
-            all_notes = notes + considerations
+            # 4.2 Behavioral Metrics
+            story.append(Paragraph("<b>🎯 Davranışsal Metrikler:</b>", self.styles["TurkishBody"]))
+            metrics_data = [
+                ["Risk İştahı:", ai_eval.get("risk_istahi", "-")],
+                ["Satın Alma Motivasyonu:", ai_eval.get("satin_alma_motivasyonu", "-")],
+                ["Satın Alma Zamanlaması:", ai_eval.get("satin_alma_zamani", "-")]
+            ]
+            self._add_table(story, metrics_data, col_widths=[140, 330])
+            story.append(Spacer(1, 10))
             
-            if all_notes:
-                story.append(Paragraph("<b>Yaşam Tarzı ve Kritik Noktalar:</b>", self.styles["TurkishBody"]))
-                for note in all_notes:
-                    story.append(Paragraph(f"• {note}", self.styles["TurkishBody"]))
+            # 4.3 Lifestyle Insights - EN ÖNEMLİ BÖLÜM!
+            notes = ai_eval.get("yasam_tarzi_notlari", [])
+            if notes:
+                story.append(Paragraph("<b>🔍 Yaşam Tarzı Analizi (Sohbet Bağlamından):</b>", self.styles["TurkishBody"]))
+                story.append(Paragraph("AI'ın sohbet sırasında tespit ettiği önemli noktalar:", self.styles["TurkishBody"]))
+                for i, note in enumerate(notes, 1):
+                    story.append(Paragraph(f"{i}. {note}", self.styles["TurkishBody"]))
+                story.append(Spacer(1, 10))
+            
+            # 4.4 Strategic Recommendations
+            recs = ai_eval.get("tavsiyeler", [])
+            if recs:
+                story.append(Paragraph("<b>💡 Önerilen Stratejiler:</b>", self.styles["TurkishBody"]))
+                for i, rec in enumerate(recs, 1):
+                    story.append(Paragraph(f"{i}. {rec}", self.styles["TurkishBody"]))
+                story.append(Spacer(1, 10))
+            
+            # 4.5 Key Considerations
+            considerations = ai_eval.get("dikkat_noktalari", [])
+            if considerations:
+                story.append(Paragraph("<b>⚠️ Dikkat Edilmesi Gereken Noktalar:</b>", self.styles["TurkishBody"]))
+                for i, note in enumerate(considerations, 1):
+                    story.append(Paragraph(f"{i}. {note}", self.styles["TurkishBody"]))
+                story.append(Spacer(1, 10))
 
             # 5. Footer
             story.append(Spacer(1, 30))

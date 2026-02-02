@@ -54,10 +54,14 @@ GÖREV:
    - `monthly_income`: Kullanıcının AYLIK geliri. Rakam olarak al. (Örn: "80k" -> 80000). ASLA "yüksek", "iyi" gibi yorum yapma.
    - `purchase_budget`: Ev almak için ayırdığı toplam bütçe. SADECE kullanıcı "ev için bütçem X" derse doldur. Maaştan türetme.
 5. **Lokasyon Ayrımı - 3 FARKLI KAVRAM**:
-   - **`current_city`** (ŞU AN NEREDE YAŞIYOR?): "Ankara'da yaşıyorum", "Kızılay'da oturuyorum", "İzmir'deyim" -> ŞU ANKİ ikamet yeri
-   - **`location`** (EV ALMAK İSTEDİĞİ YER): "Çankaya'da ev arıyorum", "Kadıköy'de ev almak istiyorum" -> Hedef bölge
-     * Eğer kullanıcı "aynı yerde", "burada" derse, current_city'yi location'a da kopyala
-   - **`hometown`** (MEMLEKET): "Bursalıyım", "Antepliyim" -> Nereli olduğu (Sadece "-liyim/-lıyım" ifadelerinde doldur)
+   - **`current_city`, `current_district`** (ŞU AN NEREDE?): "Ankara'da yaşıyorum", "Kızılay'da oturuyorum" → Mevcut ikamet
+   - **`location`** (HEDEF - Ev almak istediği yer): 
+     * "Çankaya'da ev arıyorum", "Kadıköy'de almak istiyorum" → Alış hedefi
+     * **TAŞINMA İFADELERİ (ÇOK ÖNEMLİ!):**
+       - "Bursa'ya taşınıyoruz", "İzmir'e gidiyoruz", "Antep'e taşınmamız gerek", "İstanbul'a yerleşeceğiz" → location = o şehir
+       - "İş için X'e gitmem lazım" → location = X
+       - Kullanıcı "Ankara'da yaşıyorum ama İzmir'e taşınacağım" derse: current_city=Ankara, location=İzmir
+   - **`hometown`** (MEMLEKET): "Bursalıyım", "Antepliyim" → Nereli olduğu (Sadece "-liyim/-lıyım" ifadelerinde doldur)
    - ⚠️ Bu 3 kavramı ASLA karıştırma! Her biri ayrı field.
 6. **Sosyal Alanlar (social_amenities)**: Spor salonu, havuz, yürüyüş parkuru gibi talepler.
    - "Havuz istiyorum", "Spor salonu olsun", "Yürüyüş parkuru" -> ["Havuz", "Spor Salonu", "Yürüyüş Parkuru"]
