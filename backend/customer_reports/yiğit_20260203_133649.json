@@ -1,0 +1,70 @@
+{
+  "rapor_tarihi": "2026-02-03T13:36:49.393876",
+  "musteri_bilgileri": {
+    "isim": "Yiğit Yaldız",
+    "telefon": null,
+    "email": null,
+    "memleket": "Gaziantep",
+    "yasadigi_sehir": "Gaziantep",
+    "yasadigi_ilce": null
+  },
+  "profesyonel_bilgiler": {
+    "meslek": "Doktor",
+    "tahmini_maas": "70000"
+  },
+  "aile_bilgileri": {
+    "medeni_durum": "bekar",
+    "cocuk_var_mi": null,
+    "aile_buyuklugu": null
+  },
+  "yasam_tarzi": {
+    "hobiler": [],
+    "notlar": null
+  },
+  "konut_tercihleri": {
+    "hedef_sehir": "Gaziantep",
+    "hedef_ilce": null,
+    "oda_sayisi": 4,
+    "ev_tipi": "apartment",
+    "sosyal_alanlar": [],
+    "satin_alma_amaci": "Yatırım",
+    "birikim_durumu": "8 milyon kadar",
+    "kredi_kullanimi": "Hayır",
+    "takas_tercihi": "Hayır"
+  },
+  "butce_analizi": {
+    "belirtilen_butce": null,
+    "para_birimi": "TRY",
+    "tavsiye_edilen_segment": "B",
+    "guven_seviyesi": "medium",
+    "ust_segmente_gecis_mumkun": null,
+    "ek_butce_gerekli": null
+  },
+  "ai_degerlendirmesi": {
+    "risk_istahi": "low",
+    "satin_alma_motivasyonu": "yatırım",
+    "satin_alma_zamani": "hemen",
+    "detayli_analiz": "Yiğit, Gaziantep doğumlu ve orada yaşayan, bekar bir doktor. Aylık 70 bin TL civarında bir geliri ve 8 milyon TL peşinat birikimi bulunuyor. Evlenmeyi düşünmediğini belirttiği için, bu yatırım kararı tamamen kişisel finansal geleceğini güçlendirmeye yönelik. Kredi kullanmak istemiyor ve takas düşünmüyor, bu da finansal olarak oldukça güvende hissettiğini ve işlemleri nakit gücüyle, sade bir şekilde halletmek istediğini gösteriyor. Geniş bir 4+1 ev arayışı, yatırım olarak aldığı evin hem kira getirisi yüksek hem de ileride değer artış potansiyeli taşıyan, talep gören bir tip olmasına önem verdiğini düşündürüyor. Doktor olması, analitik ve uzun vadeli düşünen bir profil çiziyor. Gaziantep'i çok iyi tanıması, yatırım yapacağı semt ve proje konusunda daha seçici ve bilinçli olacağı anlamına gelir.",
+    "ozet": "Yiğit, güçlü nakit birikimiyle, kredi kullanmadan, Gaziantep'te yatırım amaçlı geniş bir daire arayan, şehri iyi bilen bekar bir doktor.",
+    "tavsiyeler": [
+      "1. Gaziantep'in gelişmekte olan ve kiralama potansiyeli yüksek semtlerinde (örneğin, Şehitkamil'de yeni açılan hastane çevreleri veya üniversite yakınları) 4+1 daireler önceliklendirilmeli.",
+      "2. Yatırım getirisi yüksek, sosyal donatıları iyi ve bakımı kolay, yeni veya sıfıra yakın konut projelerine odaklanılmalı.",
+      "3. Net kira getirisi ve bölgenin gelecek projeksiyonu hakkında detaylı bilgi sunan, şeffaf projeler önerilmeli."
+    ],
+    "dikkat_noktalari": [
+      "1. Kredi kullanmayacak olması, peşinatın tamamını kullanma esnekliği sağlar, ancak likidite yönetimi konusunda bilgilendirme yapılmalı.",
+      "2. 'Paramın yeteceği ev' vurgusu, kesinlikle bütçeyi aşmayan, net fiyatlı teklifler sunulması gerektiğini gösteriyor."
+    ],
+    "yasam_tarzi_notlari": [
+      "1. Kullanıcı Gaziantep doğumlu ve orada yaşıyor, şehri çok iyi tanıyor.",
+      "2. Bekar bir doktor ve evlenmeyi düşünmüyor, kararları tamamen bireysel.",
+      "3. Aylık 70 bin TL geliri var, orta-üst gelir grubunda.",
+      "4. 8 milyon TL peşinat birikimi bulunuyor, finansal durumu güçlü.",
+      "5. Yatırım amaçlı 4+1 geniş bir ev arıyor, kira getirisi ve değer artışı önceliği var.",
+      "6. Kredi kullanmak istemiyor, tamamen nakit gücüne güveniyor.",
+      "7. Takas düşünmüyor, işlemi sade ve doğrudan halletmek istiyor.",
+      "8. 'Paramın yeteceği ev olsun' ifadesi, bütçesinin sınırlarını net çizdiğini ve risksiz işlem aradığını gösteriyor."
+    ]
+  },
+  "status": "PROFIL_TAMAMLANDI_EMLAKCIYA_GONDERILDI"
+}

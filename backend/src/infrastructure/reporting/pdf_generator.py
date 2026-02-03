@@ -53,19 +53,19 @@ class PDFReportGenerator:
             alignment=1 # Center
         ))
         
-        # Section Header
+        # Section Header - More technical
         styles.add(ParagraphStyle(
             name='SectionHeader',
             parent=styles['Heading2'],
             fontName=f'{self.font_name}-Bold' if self.font_name != 'Helvetica' else 'Helvetica-Bold',
             fontSize=16,
-            textColor=colors.HexColor('#0d47a1'),
-            spaceBefore=15,
-            spaceAfter=10,
-            borderPadding=5,
-            borderColor=colors.HexColor('#e0e0e0'),
+            textColor=colors.HexColor('#1565c0'), # A bit lighter blue
+            spaceBefore=20,
+            spaceAfter=12,
+            borderPadding=8,
+            borderColor=colors.HexColor('#1565c0'),
             borderWidth=0,
-            borderBottomWidth=1
+            borderBottomWidth=1.5 # Thicker bottom line
         ))
         
         # Normal Text
@@ -74,22 +74,35 @@ class PDFReportGenerator:
             parent=styles['Normal'],
             fontName=self.font_name,
             fontSize=11,
-            leading=14,
-            spaceAfter=6
+            leading=15, # More breathing room
+            spaceAfter=8
         ))
         
-        # Analysis Box Style
+        # Analysis Box Style - Full Box with better padding
         styles.add(ParagraphStyle(
             name='AnalysisBox',
             parent=styles['Normal'],
             fontName=self.font_name,
             fontSize=11,
-            leading=14,
-            backColor=colors.HexColor('#f5f5f5'),
+            leading=16, # Increased leading for readability
+            backColor=colors.HexColor('#f8f9fa'),
             borderColor=colors.HexColor('#e0e0e0'),
-            borderWidth=1,
-            borderPadding=10,
-            spaceAfter=10
+            borderWidth=1, # Restored full border
+            borderPadding=15, # Increased padding to prevent text overlap
+            spaceBefore=5, # Space between title and box
+            spaceAfter=20
+        ))
+        
+        # Bullet Point Style
+        styles.add(ParagraphStyle(
+            name='BulletPoint',
+            parent=styles['Normal'],
+            fontName=self.font_name,
+            fontSize=11,
+            leading=15,
+            leftIndent=15,
+            spaceAfter=4,
+            textColor=colors.HexColor('#424242')
         ))
 
         return styles
@@ -100,16 +113,17 @@ class PDFReportGenerator:
             doc = SimpleDocTemplate(
                 str(output_path),
                 pagesize=A4,
-                rightMargin=40, leftMargin=40,
-                topMargin=40, bottomMargin=40
+                rightMargin=50, leftMargin=50, # More whitespace
+                topMargin=50, bottomMargin=50
             )
             
             story = []
             
             # 1. Header & Title
             story.append(Paragraph("Güllüoğlu İnşaat | AI Emlak Raporu", self.styles["ReportTitle"]))
-            story.append(Paragraph(f"Tarih: {datetime.now().strftime('%d.%m.%Y %H:%M')}", self.styles["TurkishBody"]))
-            story.append(Spacer(1, 20))
+            story.append(Paragraph(f"Tarih: {datetime.now().strftime('%d.%m.%Y %H:%M')}", 
+                                 ParagraphStyle('Date', parent=self.styles["TurkishBody"], alignment=1, textColor=colors.grey)))
+            story.append(Spacer(1, 25))
             
             # 2. Customer Profile
             story.append(Paragraph("1. Müşteri Profili", self.styles["SectionHeader"]))
@@ -125,7 +139,7 @@ class PDFReportGenerator:
                 ["Meslek:", prof_info.get("meslek", "-")],
                 ["Tahmini Gelir:", prof_info.get("tahmini_maas", "-")],
                 ["Medeni Durum:", family_info.get("medeni_durum", "-")],
-                ["Aile Yapısı:", "Çocuk Var" if family_info.get("cocuk_var_mi") is True else ("Ço cuk Yok" if family_info.get("cocuk_var_mi") is False else "Belirtilmedi")]
+                ["Aile Yapısı:", "Çocuk Var" if family_info.get("cocuk_var_mi") is True else ("Çocuk Yok" if family_info.get("cocuk_var_mi") is False else "Belirtilmedi")]
             ]
             
             self._add_table(story, profile_data)
@@ -161,19 +175,24 @@ class PDFReportGenerator:
             story.append(Paragraph("3. AI Stratejik Analizi", self.styles["SectionHeader"]))
             ai_eval = report_data.get("ai_degerlendirmesi", {})
             
-            # 4.0 Detailed Analysis Paragraph (NEW - UZUN PARAGRAF)
+            # Helper to clean text (remove existing numbering like "1.", "-", etc)
+            import re
+            def clean_text(text):
+                if not text: return ""
+                # Remove leading numbers, bullets, dashes (e.g., "1. ", "- ", "* ")
+                return re.sub(r'^\s*(?:\d+[\.)]|\-|•|\*)\s*', '', str(text).strip())
+
+            # 4.0 Detailed Analysis Paragraph
             detailed_analysis = ai_eval.get("detayli_analiz")
             if detailed_analysis:
                 story.append(Paragraph("<b>📋 Detaylı Analiz:</b>", self.styles["TurkishBody"]))
                 story.append(Paragraph(detailed_analysis, self.styles["AnalysisBox"]))
-                story.append(Spacer(1, 15))
-            
+                
             # 4.1 Executive Summary
             summary = ai_eval.get("ozet")
             if summary:
                 story.append(Paragraph("<b>📊 Genel Değerlendirme:</b>", self.styles["TurkishBody"]))
                 story.append(Paragraph(summary, self.styles["AnalysisBox"]))
-                story.append(Spacer(1, 10))
             
             # 4.2 Behavioral Metrics
             story.append(Paragraph("<b>🎯 Davranışsal Metrikler:</b>", self.styles["TurkishBody"]))
@@ -182,38 +201,38 @@ class PDFReportGenerator:
                 ["Satın Alma Motivasyonu:", ai_eval.get("satin_alma_motivasyonu", "-")],
                 ["Satın Alma Zamanlaması:", ai_eval.get("satin_alma_zamani", "-")]
             ]
-            self._add_table(story, metrics_data, col_widths=[140, 330])
-            story.append(Spacer(1, 10))
+            self._add_table(story, metrics_data, col_widths=[140, 310]) # Adjusted widths
+            story.append(Spacer(1, 15))
             
-            # 4.3 Lifestyle Insights - EN ÖNEMLİ BÖLÜM!
+            # 4.3 Lifestyle Insights
             notes = ai_eval.get("yasam_tarzi_notlari", [])
             if notes:
                 story.append(Paragraph("<b>🔍 Yaşam Tarzı Analizi (Sohbet Bağlamından):</b>", self.styles["TurkishBody"]))
                 story.append(Paragraph("AI'ın sohbet sırasında tespit ettiği önemli noktalar:", self.styles["TurkishBody"]))
-                for i, note in enumerate(notes, 1):
-                    story.append(Paragraph(f"{i}. {note}", self.styles["TurkishBody"]))
-                story.append(Spacer(1, 10))
+                for note in notes:
+                    story.append(Paragraph(f"• {clean_text(note)}", self.styles["BulletPoint"]))
+                story.append(Spacer(1, 15))
             
             # 4.4 Strategic Recommendations
             recs = ai_eval.get("tavsiyeler", [])
             if recs:
                 story.append(Paragraph("<b>💡 Önerilen Stratejiler:</b>", self.styles["TurkishBody"]))
-                for i, rec in enumerate(recs, 1):
-                    story.append(Paragraph(f"{i}. {rec}", self.styles["TurkishBody"]))
-                story.append(Spacer(1, 10))
+                for rec in recs:
+                    story.append(Paragraph(f"• {clean_text(rec)}", self.styles["BulletPoint"]))
+                story.append(Spacer(1, 15))
             
             # 4.5 Key Considerations
             considerations = ai_eval.get("dikkat_noktalari", [])
             if considerations:
                 story.append(Paragraph("<b>⚠️ Dikkat Edilmesi Gereken Noktalar:</b>", self.styles["TurkishBody"]))
-                for i, note in enumerate(considerations, 1):
-                    story.append(Paragraph(f"{i}. {note}", self.styles["TurkishBody"]))
-                story.append(Spacer(1, 10))
+                for note in considerations:
+                    story.append(Paragraph(f"• {clean_text(note)}", self.styles["BulletPoint"]))
+                story.append(Spacer(1, 15))
 
             # 5. Footer
-            story.append(Spacer(1, 30))
+            story.append(Spacer(1, 40))
             disclaimer = "Bu rapor, yapay zeka tarafından kullanıcının beyanlarına dayanarak oluşturulmuştur. Kesin yatırım tavsiyesi değildir."
-            story.append(Paragraph(disclaimer, ParagraphStyle('Disclaimer', parent=self.styles['Italic'], fontSize=9, textColor=colors.grey)))
+            story.append(Paragraph(disclaimer, ParagraphStyle('Disclaimer', parent=self.styles['Italic'], fontSize=9, textColor=colors.grey, alignment=1)))
 
             doc.build(story)
             self.logger.info(f"PDF Generated successfully: {output_path}")
@@ -223,15 +242,23 @@ class PDFReportGenerator:
             self.logger.error(f"Failed to generate PDF: {e}", exc_info=True)
             raise e
 
-    def _add_table(self, story, data, col_widths=[120, 350]):
+    def _add_table(self, story, data, col_widths=[130, 360]):
         """Helper to add styled table."""
         t = Table(data, colWidths=col_widths)
         t.setStyle(TableStyle([
             ('FONTNAME', (0,0), (-1,-1), self.font_name),
+            # Key Column (First Col)
             ('FONTNAME', (0,0), (0,-1), f'{self.font_name}-Bold' if self.font_name != 'Helvetica' else 'Helvetica-Bold'),
-            ('TEXTCOLOR', (0,0), (0,-1), colors.HexColor('#424242')),
+            ('TEXTCOLOR', (0,0), (0,-1), colors.HexColor('#1a237e')), # Navy Blue Keys
+            ('ALIGN', (0,0), (0,-1), 'LEFT'),
+            # Value Column (Second Col)
+            ('TEXTCOLOR', (0,1), (-1,-1), colors.HexColor('#424242')),
+            # Layout
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+            ('TOPPADDING', (0,0), (-1,-1), 8),
+            # Dividers
+            ('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor('#eeeeee')), # Light horizontal lines
         ]))
         story.append(t)
-        story.append(Spacer(1, 10))
+        story.append(Spacer(1, 15))
