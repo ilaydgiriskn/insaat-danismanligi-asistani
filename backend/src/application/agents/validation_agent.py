@@ -36,6 +36,10 @@ class ValidationAgent(BaseAgent):
                 prompt = self.prompt_manager.get_validation_prompt(profile_summary)
                 system_message = self.prompt_manager.get_system_message("validation")
                 
+                # Get agent-specific settings
+                from infrastructure.config import get_settings
+                settings = get_settings()
+                
                 response = await self.llm_service.generate_structured_response(
                     prompt=prompt,
                     system_message=system_message,
@@ -44,7 +48,9 @@ class ValidationAgent(BaseAgent):
                         "is_ready_for_analysis": "boolean",
                         "missing_or_unclear": "array",
                         "message": "string"
-                    }
+                    },
+                    temperature=settings.validation_agent_temperature,
+                    max_tokens=settings.validation_agent_max_tokens,
                 )
                 
                 self._log_execution(

@@ -1,0 +1,72 @@
+{
+  "rapor_tarihi": "2026-02-03T13:17:36.976923",
+  "musteri_bilgileri": {
+    "isim": "Sefa Soy",
+    "telefon": null,
+    "email": null,
+    "memleket": "Şanlıurfa",
+    "yasadigi_sehir": "Şanlıurfa",
+    "yasadigi_ilce": null
+  },
+  "profesyonel_bilgiler": {
+    "meslek": "Öğretmen",
+    "tahmini_maas": "40000"
+  },
+  "aile_bilgileri": {
+    "medeni_durum": "bekar",
+    "cocuk_var_mi": false,
+    "aile_buyuklugu": null
+  },
+  "yasam_tarzi": {
+    "hobiler": [],
+    "notlar": "Ailesiyle yaşıyor, anne geniş mutfak istiyor, baba büyük balkon istiyor"
+  },
+  "konut_tercihleri": {
+    "hedef_sehir": "Şanlıurfa",
+    "hedef_ilce": null,
+    "oda_sayisi": 4,
+    "ev_tipi": "apartment",
+    "sosyal_alanlar": [],
+    "satin_alma_amaci": "Oturum",
+    "birikim_durumu": "cok az bir mebla var bende",
+    "kredi_kullanimi": "Hayır",
+    "takas_tercihi": "Evet"
+  },
+  "butce_analizi": {
+    "belirtilen_butce": null,
+    "para_birimi": "TRY",
+    "tavsiye_edilen_segment": "B",
+    "guven_seviyesi": "medium",
+    "ust_segmente_gecis_mumkun": null,
+    "ek_butce_gerekli": null
+  },
+  "ai_degerlendirmesi": {
+    "risk_istahi": "low",
+    "satin_alma_motivasyonu": "konfor",
+    "satin_alma_zamani": "belirsiz",
+    "detayli_analiz": "Sefa, Şanlıurfa merkezde doğup büyümüş ve ailesiyle birlikte yaşayan bekar bir öğretmen. Aynı şehirde yaşamaya devam etme kararı, köklerine ve ailesine olan güçlü bağlılığını gösteriyor. Mevcut evini takas yoluyla değiştirmeyi düşünmesi, finansal olarak kredi kullanmak istemediğini ve elindeki varlığı en akıllı şekilde değerlendirmeye odaklandığını ortaya koyuyor. Ailesi için havuz talep etmesi, kararlarında ailesinin konforunu ve mutluluğunu ön planda tutan, düşünceli bir kişilik olduğunu anlatıyor. 'Çok az bir mebla' ifadesi, bütçe konusunda temkinli ve belki de tasarrufa önem veren bir yapıda olduğuna işaret ediyor. 4+1 gibi geniş bir ev arayışı, ailesiyle geniş bir alanda yaşama isteğini veya geleceğe yönelik bir yatırım düşüncesini akla getiriyor. Geniş mutfak ve balkon isteği, aile içi paylaşımlara ve konforlu bir yaşam alanına verdiği önemi vurguluyor.",
+    "ozet": "Sefa, Urfa'da ailesiyle yaşayan, kredi kullanmak istemeyen ve mevcut evini takas yoluyla değiştirmeyi planlayan, aile odaklı ve temkinli bir öğretmen. Ailesinin rahatı için havuzlu, geniş ve konforlu bir 4+1 ev arıyor.",
+    "tavsiyeler": [
+      "1. Şanlıurfa merkezde, aile yaşamına uygun, havuz ve yeşil alan gibi sosyal donatıları olan sitelerdeki 4+1 daireler öncelikli olarak araştırılmalı.",
+      "2. Mevcut evinin takas değerinin netleştirilmesi ve takasa açık projelerin tespit edilmesi kritik bir adım olacaktır.",
+      "3. Geniş mutfak ve balkon özelliklerine sahip, aile içi yaşam alanlarını genişleten daire planlarına odaklanılmalı.",
+      "4. Kredi kullanmayacağı göz önüne alındığında, takas + peşinat kombinasyonuna uygun, ödeme planları esnek projeler değerlendirilmeli."
+    ],
+    "dikkat_noktalari": [
+      "1. Kredi kullanmama kararı ve 'az mebla' ifadesi, bütçe ve ödeme planı konusunda çok hassas ve yaratıcı çözümlere ihtiyaç olduğunu gösteriyor.",
+      "2. Takas süreci zaman alabilir ve mevcut evin değer tespiti ile yeni evin fiyatının uyumlu olması gerekiyor, bu süreç dikkatle yönetilmeli.",
+      "3. Ailesi için havuz talebi, site yönetimi ve aidat maliyetleri gibi uzun vadeli giderler konusunda da bilgilendirme yapılmasını gerekli kılıyor."
+    ],
+    "yasam_tarzi_notlari": [
+      "1. Kullanıcı, doğduğu ve büyüdüğü Şanlıurfa'da yaşamaya devam edecek, şehir değişikliği yok.",
+      "2. Bekar bir öğretmen ve ailesiyle birlikte yaşıyor, aile bağları çok güçlü.",
+      "3. Ev alırken kredi kullanmayı düşünmüyor, bu nedenle finansal risk alma eğilimi düşük.",
+      "4. Mevcut bir evi var ve bu evi takas yoluyla değiştirmeyi planlıyor, likidite yerine varlık değişimini tercih ediyor.",
+      "5. Ailesinin konforu için sosyal donatılardan havuzu özellikle talep ediyor, kararlarında ailesi ön planda.",
+      "6. Bütçesi için 'çok az bir mebla' ifadesini kullandı, bu da peşinat konusunda sınırlı veya temkinli olabileceğini gösteriyor.",
+      "7. 4+1 gibi geniş bir ev tipi arıyor, bu hem ailesiyle yaşadığı hem de geleceğe yönelik ihtiyaçları düşündüğü anlamına gelebilir.",
+      "8. Geniş mutfak ve büyük balkon isteği, ev içi yaşam kalitesine ve aile zamanına verdiği önemi yansıtıyor."
+    ]
+  },
+  "status": "PROFIL_TAMAMLANDI_EMLAKCIYA_GONDERILDI"
+}

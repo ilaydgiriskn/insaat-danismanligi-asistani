@@ -34,14 +34,27 @@ def send_report_via_email(report_text: str, recipient_email: str = None, subject
         logger.warning("SMTP configuration missing. Skipping email report.")
         return False
     
-    # Use recipient email if provided, otherwise send to self
-    to_email = recipient_email if recipient_email else settings.smtp_email
+    # Determine recipients
+    recipients = []
+    if recipient_email:
+        # If specific recipient provided, use it
+        recipients = [recipient_email]
+    elif settings.smtp_recipient_emails:
+        # Use configured recipients (comma-separated)
+        recipients = [email.strip() for email in settings.smtp_recipient_emails.split(',') if email.strip()]
+    else:
+        # Fallback: send to self
+        recipients = [settings.smtp_email]
+    
+    if not recipients:
+        logger.warning("No recipient emails configured. Skipping email report.")
+        return False
         
     try:
         # Create message
         msg = MIMEMultipart()
         msg['From'] = settings.smtp_email
-        msg['To'] = to_email
+        msg['To'] = ', '.join(recipients)  # Multiple recipients in To field
         msg['Subject'] = subject
 
         
@@ -72,11 +85,11 @@ def send_report_via_email(report_text: str, recipient_email: str = None, subject
         # Login
         server.login(settings.smtp_email, settings.smtp_password)
         
-        # Send
-        server.send_message(msg)
+        # Send to all recipients
+        server.send_message(msg, to_addrs=recipients)
         server.quit()
         
-        logger.info(f"Email report sent successfully to {settings.smtp_email}")
+        logger.info(f"Email report sent successfully to {', '.join(recipients)}")
         return True
         
     except Exception as e:

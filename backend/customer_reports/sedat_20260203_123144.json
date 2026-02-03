@@ -1,0 +1,56 @@
+{
+  "rapor_tarihi": "2026-02-03T12:31:44.298006",
+  "musteri_bilgileri": {
+    "isim": "Sedat Girisken",
+    "telefon": null,
+    "email": null,
+    "memleket": "Gaziantep",
+    "yasadigi_sehir": "Gaziantep",
+    "yasadigi_ilce": null
+  },
+  "profesyonel_bilgiler": {
+    "meslek": "Tekstil",
+    "tahmini_maas": "100000"
+  },
+  "aile_bilgileri": {
+    "medeni_durum": "evli",
+    "cocuk_var_mi": true,
+    "aile_buyuklugu": null
+  },
+  "yasam_tarzi": {
+    "hobiler": [],
+    "notlar": "Kızıma özel oda istiyor, misafir odasının geniş olmasını istiyor"
+  },
+  "konut_tercihleri": {
+    "hedef_sehir": "Akkent Anadolu Lisesi ve GİBTÜ arasında",
+    "hedef_ilce": null,
+    "oda_sayisi": 5,
+    "ev_tipi": "apartment",
+    "sosyal_alanlar": [
+      "Spor Salonu"
+    ],
+    "satin_alma_amaci": "oturum",
+    "birikim_durumu": "Var",
+    "kredi_kullanimi": "Evet",
+    "takas_tercihi": "Evet"
+  },
+  "butce_analizi": {
+    "belirtilen_butce": null,
+    "para_birimi": "TRY",
+    "tavsiye_edilen_segment": "A",
+    "guven_seviyesi": "medium",
+    "ust_segmente_gecis_mumkun": null,
+    "ek_butce_gerekli": null
+  },
+  "ai_degerlendirmesi": {
+    "risk_istahi": "orta",
+    "satin_alma_motivasyonu": "yasam",
+    "satin_alma_zamani": "belirsiz",
+    "detayli_analiz": "Sedat Bey, tekstil sektöründe çalışan, evli ve 3 çocuklu bir aile babası. Kökleri Gaziantep'e çok sağlam bir şekilde bağlı, doğma büyüme Antepli. Aylık 100 bin TL geliri ile orta-üst gelir grubunda yer alıyor. Aile dinamikleri çok önemli; 2 oğlu ve 1 kızı için, özellikle kızına özel bir oda talep ediyor. 4+1 tipinde, geniş bir misafir odası olan, Gaziantep merkeze yakın bir ev arıyor. Çocuklarının eğitimi de öncelikli; evin Akkent Anadolu Lisesi ve GİBTÜ arasında bir konumda olmasını istemesi, çocuklarının ulaşımını kolaylaştırmak ve onlara yakın olmak istediğini gösteriyor. Spor salonuna yakın olma isteği, sağlıklı ve aktif bir yaşam tarzına önem verdiğini düşündürüyor. Ev alırken hem bir birikimini kullanmayı hem de mevcut evini takas etmeyi düşünüyor, bu da finansal olarak esnek ve akıllı bir planlama yaptığını gösteriyor. Az miktarda da olsa kredi kullanmayı düşünmesi, bütçesini optimize etmek istediğini anlatıyor. Özetle, köklü bir Antep ailesi için, çocuk odaklı, merkezi ve sosyal donatıları uygun, geniş bir aile evi arayışı içinde.",
+    "ozet": "",
+    "tavsiyeler": [],
+    "dikkat_noktalari": [],
+    "yasam_tarzi_notlari": []
+  },
+  "status": "PROFIL_TAMAMLANDI_EMLAKCIYA_GONDERILDI"
+}

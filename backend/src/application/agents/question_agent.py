@@ -39,6 +39,10 @@ KONUŞMA GEÇMİŞİ (Sondan başa doğru):
 
 GÖREV: Yukarıdaki kurallara göre doğal bir sonraki soruyu veya kapanış cümlesini seç."""
 
+            # Get agent-specific settings
+            from infrastructure.config import get_settings
+            settings = get_settings()
+            
             # Use structured response for the requested JSON format
             result = await self.llm_service.generate_structured_response(
                 prompt=user_msg,
@@ -47,7 +51,9 @@ GÖREV: Yukarıdaki kurallara göre doğal bir sonraki soruyu veya kapanış cü
                     "question": "string or null",
                     "category": "string or null",
                     "message": "string or null"
-                }
+                },
+                temperature=settings.question_agent_temperature,
+                max_tokens=settings.question_agent_max_tokens,
             )
             
             return result

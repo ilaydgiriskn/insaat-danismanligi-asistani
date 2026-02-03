@@ -41,10 +41,9 @@ class LangChainService(ILLMService):
             
             messages.append(HumanMessage(content=prompt))
             
-            # Use the existing LLM instance for consistency
-            # Note: temperature and max_tokens are set at the LLM instance level in __init__
-            # If you need to override them per call, you would pass them to ainvoke or re-initialize LLM
-            response = await self.llm.ainvoke(messages)
+            # Use bind() to override temperature and max_tokens for this specific call
+            llm_with_config = self.llm.bind(temperature=temperature, max_tokens=max_tokens)
+            response = await llm_with_config.ainvoke(messages)
             
             return response.content
             
@@ -57,6 +56,8 @@ class LangChainService(ILLMService):
         prompt: str,
         system_message: Optional[str] = None,
         response_format: Optional[dict] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 1000,
     ) -> dict:
         """Generate a structured response (JSON) from the LLM."""
         try:
@@ -74,7 +75,9 @@ class LangChainService(ILLMService):
             
             messages.append(HumanMessage(content=full_prompt))
             
-            response = await self.llm.ainvoke(messages)
+            # Use bind() to override temperature and max_tokens for this specific call
+            llm_with_config = self.llm.bind(temperature=temperature, max_tokens=max_tokens)
+            response = await llm_with_config.ainvoke(messages)
             
             # Parse JSON response - Enhanced for deepseek-thinking model
             content = response.content.strip()

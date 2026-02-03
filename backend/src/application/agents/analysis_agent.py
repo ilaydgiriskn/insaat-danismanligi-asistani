@@ -241,11 +241,15 @@ KULLANICI PROFİLİ:
 - Bütçe: {profile.budget.max_amount if profile.budget else 'Bilinmiyor'}
 """
 
+            # Get agent-specific settings
+            from infrastructure.config import get_settings
+            settings = get_settings()
+
             response = await self.llm_service.generate_response(
                 prompt=input_data,
                 system_message=self.AGENT2_SYSTEM_PROMPT,
-                temperature=0.3, # Low temperature for structured output
-                max_tokens=2500  # Increased for detailed analysis
+                temperature=settings.analysis_agent_temperature,
+                max_tokens=settings.analysis_agent_max_tokens,
             )
 
             # Cleanup potential markdown artifacts (Robust Regex)

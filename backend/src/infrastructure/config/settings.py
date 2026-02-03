@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     openai_temperature: float = 0.7
     openai_max_tokens: int = 1000
     
+    # Per-Agent LLM Configuration
+    question_agent_temperature: float = 0.7
+    question_agent_max_tokens: int = 1000
+    analysis_agent_temperature: float = 0.8
+    analysis_agent_max_tokens: int = 1500
+    validation_agent_temperature: float = 0.2
+    validation_agent_max_tokens: int = 800
+    
     # Logging
     log_level: str = "INFO"
     log_format: str = "json"
@@ -44,6 +52,7 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_email: Optional[str] = None
     smtp_password: Optional[str] = None
+    smtp_recipient_emails: str = ""  # Comma-separated list of recipient emails
     
     model_config = SettingsConfigDict(
         env_file=".env",
