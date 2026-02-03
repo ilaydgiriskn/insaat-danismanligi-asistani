@@ -110,16 +110,14 @@ class UserProfile:
         2. Surname (Soyisim)
         3. Profession (Meslek)
         4. Salary (Maaş)
-        5. Email (Mail)
-        6. Current City/District (Yaşadığı yer/semt)
+        5. Target Location (Hedef Lokasyon)
         """
         has_mandatory = bool(
             self.name and 
             self.surname and 
             self.profession and 
             self.estimated_salary and 
-            self.email and
-            self.current_city
+            self.location and self.location.city  # Target location is mandatory
         )
         return has_mandatory
     

@@ -20,6 +20,29 @@ class AnalysisAgent(BaseAgent):
     AGENT2_SYSTEM_PROMPT = """Sen bir Emlak Dostu ve Stratejistisin.
 Analizlerin keskin ama üslubun sıcak, samimi ve doğal olsun.
 
+🚨 KRİTİK KURALLAR (EN YÜKSEK ÖNCELİK):
+
+1. **"detailed_analysis" alanı HER ZAMAN dolu olmalıdır.**
+   - Bu alan ZORUNLUDUR ve EN YÜKSEK ÖNCELİKTİR.
+   - En az 5–7 tam cümle içermelidir.
+   - ASLA boş, null veya {} bırakılmamalıdır.
+   - HİÇBİR koşulda atlanamaz.
+
+2. **"detailed_analysis" içeriği:**
+   - Akıcı ve doğal TÜRKÇE ile yazılmalıdır.
+   - Kullanıcının yaşam durumu, beklentileri, motivasyonları ve kısıtlarını açıklamalıdır.
+   - PDF'de doğrudan gösterilmeye uygun olmalıdır.
+   - Madde işareti, markdown veya kod bloğu İÇERMEMELİDİR.
+
+3. **Bazı bilgiler eksik olsa bile:**
+   - Mantıklı varsayımlar yap ve bunu analiz metninde açıkla.
+   - "Veri eksik", "belirlenemiyor" gibi ifadeler KULLANMA.
+   - Her zaman en iyi tahmini yap.
+
+⚠️ UNUTMA: PDF'de detaylı analiz görünmüyorsa bu bir BAŞARISIZLIKTIR.
+
+---
+
 ⚠️ ÖNEMLİ KURALLAR:
 - Kullanıcıya "analiz", "segment", "paket", "rapor", "geçiş" gibi kelimeleri ASLA kullanma.
 - Amacın kullanıcıyı fark ettirmeden A, B veya C paketlerine yönlendirmek.
@@ -72,6 +95,7 @@ Yanıtını KESİNLİKLE JSON formatında üret:
     "purchase_timeline": "hemen | 3 ay | 1 yıl | belirsiz",
     "relocation_reason": "Kullanıcının taşınma sebebi (tayin, evlilik, iş vs.)"
   },
+  "detailed_analysis": "Ali ve eşi, Ankara'dan Gaziantep'e iş nedeniyle taşınan bilgisayar mühendisi bir çift. 400k aylık gelir ile yüksek gelir segmentinde yer alıyorlar ve 40 altın birikimlerinin yanı sıra sınırlı kredi kullanımı planlıyorlar. 2 çocukları için 4+1 ev arayışları, gelecekteki aile büyümesine de hazırlık gösteriyor. Spor salonu talebi, aktif ve sağlıklı yaşam önceliklerini yansıtıyor. Memleketi Kahramanmaraş olması, Gaziantep'e yakınlık açısından aile bağları için avantaj sağlayabilir. Araba takası düşünmeleri, finansal esneklik ihtiyacını gösteriyor.",
   "lifestyle_insights": [
     "1. Kullanıcı X şehrinden Y şehrine İŞ/TAYİN sebebiyle taşınıyor.",
     "2. Bilgisayar mühendisi çift, evde çalışma odası çok önemli.",
@@ -250,8 +274,34 @@ KULLANICI PROFİLİ:
             except json.JSONDecodeError as je:
                 # Log the problematic JSON for debugging
                 self.logger.error(f"JSON Parse Error: {je}")
-                self.logger.error(f"Cleaned JSON: {clean_json[:500]}...")  # First 500 chars
-                return None
+                self.logger.error(f"Cleaned JSON: {clean_json[:500]}...")
+                
+                # FALLBACK: Try even more aggressive cleanup
+                try:
+                    clean_json = re.sub(r',\s*}', '}', clean_json)
+                    clean_json = re.sub(r',\s*]', ']', clean_json)
+                    parsed = json.loads(clean_json)
+                    return parsed
+                except:
+                    # LAST RESORT: Extract detailed_analysis manually if JSON is broken
+                    self.logger.warning("JSON parsing failed completely, attempting manual extraction")
+                    try:
+                        # Try to extract detailed_analysis field using regex
+                        detailed_match = re.search(r'"detailed_analysis"\s*:\s*"([^"]+)"', response)
+                        if detailed_match:
+                            detailed_text = detailed_match.group(1)
+                            self.logger.info(f"Manually extracted detailed_analysis: {detailed_text[:100]}...")
+                            # Return minimal valid structure with extracted analysis
+                            return {
+                                "user_analysis": {},
+                                "detailed_analysis": detailed_text,
+                                "lifestyle_insights": [],
+                                "recommendations": [],
+                                "key_considerations": []
+                            }
+                    except Exception as extract_err:
+                        self.logger.error(f"Manual extraction also failed: {extract_err}")
+                    return None
                 
         except Exception as e:
             self._log_error(f"Structured analysis failed: {str(e)}")

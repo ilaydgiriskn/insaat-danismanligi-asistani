@@ -24,6 +24,9 @@ class QuestionCategory(str, Enum):
     SAVINGS = "savings"
     CREDIT_USAGE = "credit_usage"
     EXCHANGE = "exchange"
+    BUDGET = "budget"
+    PROPERTY_TYPE = "property_type"
+    FAMILY_SIZE = "family_size"
 
     def __str__(self) -> str:
         return self.value

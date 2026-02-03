@@ -23,3 +23,5 @@ httpx<0.28.0
 
 # Reporting
 reportlab==4.2.5
+#test icin
+pytest==8.3.4

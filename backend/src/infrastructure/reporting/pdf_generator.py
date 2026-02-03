@@ -132,27 +132,41 @@ class PDFReportGenerator:
             
             # 3. Requirements
             story.append(Paragraph("2. Konut Beklentileri", self.styles["SectionHeader"]))
-            prefs = report_data.get("konut_tercihleri", {})
-            budget = report_data.get("butce_analizi", {})
+            housing_prefs = report_data.get("konut_tercihleri", {})
+            budget_info = report_data.get("butce_analizi", {})
             
-            pref_data = [
-                ["Hedef Lokasyon:", f"{prefs.get('hedef_sehir', '-')} / {prefs.get('hedef_ilce', '-')}"],
-                ["Oda Sayısı:", str(prefs.get("oda_sayisi", "-"))],
-                ["Konut Tipi:", prefs.get("ev_tipi", "-")],
-                ["Satın Alma Amacı:", prefs.get("satin_alma_amaci") or "Belirtilmedi"],
-                ["Sosyal Alanlar:", ", ".join(prefs.get("sosyal_alanlar", [])) if prefs.get("sosyal_alanlar") else "Talep Belirtilmedi"],
-                ["Birikim Durumu:", prefs.get("birikim_durumu") or "Belirtilmedi"],
-                ["Kredi Kullanımı:", prefs.get("kredi_kullanimi") or "Belirtilmedi"],
-                ["Takas Tercihi:", prefs.get("takas_tercihi") or "Belirtilmedi"],
-                ["Bütçe Limiti:", f"{budget.get('belirtilen_butce', '-')} {budget.get('para_birimi', '')}"],
-                ["Önerilen Segment:", budget.get("tavsiye_edilen_segment", "-")]
+            # Format social amenities list
+            social_amenities = housing_prefs.get('sosyal_alanlar', [])
+            if social_amenities and len(social_amenities) > 0:
+                social_text = ", ".join(social_amenities)
+            else:
+                social_text = "Belirtilmedi"
+            
+            housing_data = [
+                ["Hedef Lokasyon:", f"{housing_prefs.get('hedef_sehir', '-')} / {housing_prefs.get('hedef_ilce', '-')}"],
+                ["Oda Sayısı:", str(housing_prefs.get('oda_sayisi', '-'))],
+                ["Konut Tipi:", housing_prefs.get('ev_tipi', '-')],
+                ["Satın Alma Amacı:", housing_prefs.get('satin_alma_amaci', '-')],
+                ["Sosyal Alanlar:", social_text],
+                ["Birikim Durumu:", housing_prefs.get('birikim_durumu', '-')],
+                ["Kredi Kullanımı:", housing_prefs.get('kredi_kullanimi', '-')],
+                ["Takas Tercihi:", housing_prefs.get('takas_tercihi', '-')],
+                ["Bütçe Limiti:", f"{budget_info.get('belirtilen_butce', '-')} {budget_info.get('para_birimi', 'TRY')}"],
+                ["Önerilen Segment:", budget_info.get('tavsiye_edilen_segment', '-')]
             ]
             
-            self._add_table(story, pref_data)
+            self._add_table(story, housing_data)
             
             # 4. AI Strategic Analysis
             story.append(Paragraph("3. AI Stratejik Analizi", self.styles["SectionHeader"]))
             ai_eval = report_data.get("ai_degerlendirmesi", {})
+            
+            # 4.0 Detailed Analysis Paragraph (NEW - UZUN PARAGRAF)
+            detailed_analysis = ai_eval.get("detayli_analiz")
+            if detailed_analysis:
+                story.append(Paragraph("<b>📋 Detaylı Analiz:</b>", self.styles["TurkishBody"]))
+                story.append(Paragraph(detailed_analysis, self.styles["AnalysisBox"]))
+                story.append(Spacer(1, 15))
             
             # 4.1 Executive Summary
             summary = ai_eval.get("ozet")

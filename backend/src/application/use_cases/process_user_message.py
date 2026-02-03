@@ -631,7 +631,7 @@ class ProcessUserMessageUseCase:
             # PHASE 1: Discovery (Keşif Sohbeti)
             # FORCE Phase 1 if there are missing fields, regardless of advisor opinion
             if missing or not is_mature:
-                self.logger.info("Executing QuestionAgent for Discovery Phase")
+                self.logger.info(f"Executing QuestionAgent for Discovery Phase - Missing: {missing}")
                 agent_result = await self.question_agent.execute(profile, conversation, missing)
                 
                 msg = (agent_result.get("message") or "").strip()
@@ -640,10 +640,10 @@ class ProcessUserMessageUseCase:
                 # REPETITION GUARD
                 # Check if 'q' (the question) was already asked recently or if the user already answered it logic
                 recent_assistant_msgs = [m.content for m in conversation.messages if m.role.value == 'assistant'][-3:]
-                if any(q in prev for prev in recent_assistant_msgs):
+                if q and any(q in prev for prev in recent_assistant_msgs):
                      self.logger.warning(f"Prevented repetitive question: {q}")
-                     # Fallback to general encouragement or next missing item
-                     q = "" 
+                     # Don't ask the same question again - just use message
+                     q = None
 
                 if q:
                     # IMPROVED DEDUPLICATION: Check if question is already in message
@@ -668,9 +668,10 @@ class ProcessUserMessageUseCase:
                     if q_clean in msg_clean or is_duplicate:
                         response = msg
                     else:
-                        response = f"{msg} {q}"
+                        response = f"{msg} {q}".strip() if msg else q
                 else:
-                    response = msg or "Sohbetimiz için çok teşekkürler."
+                    # No question to ask - just return message
+                    response = msg if msg else "Anlıyorum, devam edelim."
                 
                 # DUPLICATE PHRASE REMOVAL - Remove repeated question phrases
                 # But ONLY if the field is already answered (don't prevent first-time questions)
@@ -943,6 +944,7 @@ Yanıt:"""
                 "risk_istahi": user_analysis.get("risk_appetite", "orta"),
                 "satin_alma_motivasyonu": user_analysis.get("purchase_motivation", "yasam"),
                 "satin_alma_zamani": user_analysis.get("purchase_timeline", "belirsiz"),
+                "detayli_analiz": structured.get("detailed_analysis", ""),
                 "ozet": structured.get("summary", ""),
                 "tavsiyeler": structured.get("recommendations", []),
                 "dikkat_noktalari": structured.get("key_considerations", []),
