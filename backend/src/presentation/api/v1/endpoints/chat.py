@@ -59,3 +59,28 @@ async def send_message(
             category=None,
             analysis=None,
         )
+@router.get("/{session_id}/history")
+async def get_history(
+    session_id: str,
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Get conversation history for resumption."""
+    try:
+        from application.use_cases.get_conversation_history import GetConversationHistoryUseCase
+        from infrastructure.database.repositories.sqlalchemy_user_repository import SQLAlchemyUserRepository
+        from infrastructure.database.repositories.sqlalchemy_conversation_repository import SQLAlchemyConversationRepository
+        
+        user_repo = SQLAlchemyUserRepository(session)
+        conv_repo = SQLAlchemyConversationRepository(session)
+        
+        use_case = GetConversationHistoryUseCase(user_repo, conv_repo)
+        result = await use_case.execute(session_id)
+        
+        if not result:
+            return {"found": False}
+            
+        return {"found": True, "data": result}
+        
+    except Exception as e:
+        logger.error(f"History error: {str(e)}", exc_info=True)
+        return {"found": False, "error": str(e)}

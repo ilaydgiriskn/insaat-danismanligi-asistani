@@ -1,0 +1,70 @@
+{
+  "rapor_tarihi": "2026-02-04T07:22:50.155099",
+  "musteri_bilgileri": {
+    "isim": "İlayda Serpil",
+    "telefon": null,
+    "email": null,
+    "memleket": "Gaziantep",
+    "yasadigi_sehir": "Gaziantep",
+    "yasadigi_ilce": null
+  },
+  "profesyonel_bilgiler": {
+    "meslek": "Mühendis",
+    "tahmini_maas": "150000"
+  },
+  "aile_bilgileri": {
+    "medeni_durum": "bekar",
+    "cocuk_var_mi": false,
+    "aile_buyuklugu": null
+  },
+  "yasam_tarzi": {
+    "hobiler": [],
+    "notlar": "Ailesiyle yaşıyor, kendine ait çalışma odası istiyor"
+  },
+  "konut_tercihleri": {
+    "hedef_sehir": "Gaziantep",
+    "hedef_ilce": null,
+    "oda_sayisi": 4,
+    "ev_tipi": "apartment",
+    "sosyal_alanlar": [],
+    "satin_alma_amaci": "Oturum",
+    "birikim_durumu": "Var",
+    "kredi_kullanimi": "Evet",
+    "takas_tercihi": "Evet (araba takası düşünüyor)"
+  },
+  "butce_analizi": {
+    "belirtilen_butce": null,
+    "para_birimi": "TRY",
+    "tavsiye_edilen_segment": "B",
+    "guven_seviyesi": "medium",
+    "ust_segmente_gecis_mumkun": null,
+    "ek_butce_gerekli": null
+  },
+  "ai_degerlendirmesi": {
+    "risk_istahi": "medium",
+    "satin_alma_motivasyonu": "oturum",
+    "satin_alma_zamani": "3 ay",
+    "detayli_analiz": "İlayda, Gaziantep merkezde ailesiyle yaşayan, kökleri bu şehre dayanan bir bilgisayar mühendisi. Yakında nişanlanmayı planlıyor, bu da hayatında büyük bir değişim ve yeni bir başlangıç anlamına geliyor. Kendi ailesini kurma yolunda, aile evinden ayrılıp bağımsız bir yaşam alanı oluşturmak istiyor. Hem kendi 150k'lık hem de ailesinin yaklaşık 150k'lık geliriyle, toplamda 300k civarında bir aylık gelir potansiyeli var. Bu, Gaziantep şartlarında oldukça iyi bir bütçe esnekliği sağlıyor. Ev için bir miktar birikimi var ve kredi kullanmayı da düşünüyor, bu da finansal planlamasında dengeli ve makul bir risk profili çiziyor. Kendi çalışma odası olan 4+1 bir ev istemesi, hem profesyonel iş hayatına evden devam etme ihtiyacını hem de gelecekteki aile planları için (muhtemelen çocuk düşüncesi) ekstra oda ihtiyacını gösteriyor. Arabasını takas olarak düşünmesi ise likiditesini artırmak ve peşinat gücünü yükseltmek için akıllıca bir strateji arayışında olduğunu düşündürüyor.",
+    "ozet": "İlayda, yaklaşan nişanlanması nedeniyle aile evinden ayrılıp Gaziantep'te kendi 4+1 evini kurmak isteyen, iyi gelirli ve dengeli bir finansal plana sahip bir bilgisayar mühendisi. Kendi çalışma odası talebi öncelikli.",
+    "tavsiyeler": [
+      "1. Gaziantep'te, özellikle Şehitkamil veya Şahinbey'in merkeze yakın ama sakin, ailevi yapıdaki sitelerinde 4+1 daireler odaklanılmalı.",
+      "2. Evden çalışma ihtiyacı düşünülerek, çalışma odası ayrı ve sessiz olan, fiber internet altyapısı güçlü projeler önceliklendirilmeli.",
+      "3. Arabayı takas opsiyonu değerlendirilerek, peşinat gücü artırılmalı ve buna uygun esnek ödeme planı sunan projeler araştırılmalı."
+    ],
+    "dikkat_noktalari": [
+      "1. Nişanlanma ve evlilik süreci zaman baskısı yaratabilir, hazır veya kısa vadede teslim konutlar ön planda tutulmalı.",
+      "2. Kredi kullanım planı ve araba takası düşüncesi bütçe yapısını değiştirebilir, net bir finansal model oluşturmak kritik."
+    ],
+    "yasam_tarzi_notlari": [
+      "1. Kullanıcı Gaziantep merkezde ailesiyle yaşıyor ve kökleri bu şehre dayanıyor, şehirden ayrılma planı yok.",
+      "2. Bilgisayar mühendisi olarak çalışıyor ve evde kendine ait bir çalışma odası talebi çok net, evden çalışma ihtiyacı veya alışkanlığı olabilir.",
+      "3. Yakında nişanlanmayı planlıyor, bu da ev alma motivasyonunun en büyük tetikleyicisi.",
+      "4. Kendi maaşı 150k, aile geliri de yaklaşık 150k, toplamda 300k'ya yakın aylık hane geliri mevcut.",
+      "5. Ev için birikimi var ve kredi kullanmayı planlıyor, finansal planı dengeli.",
+      "6. 4+1 ev istiyor, bu da yaklaşan evlilik ve gelecekteki olası çocuk planları için hazırlıklı olma isteğini gösteriyor.",
+      "7. Arabasını takas olarak değerlendirmeyi düşünüyor, bu da peşinatını güçlendirmek için alternatif varlık kullanma eğiliminde.",
+      "8. İletişim bilgilerini paylaşmakta temkinli, güven konusunda hassas olabilir."
+    ]
+  },
+  "status": "PROFIL_TAMAMLANDI_EMLAKCIYA_GONDERILDI"
+}

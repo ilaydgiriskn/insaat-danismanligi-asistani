@@ -101,8 +101,9 @@ GÖREV:
    - Liste olarak döndür: ["havuz", "spor salonu", "basketbol sahası", "çocuk parkı", "yürüyüş yolu"]
    - "Basketbol sahası istiyorum" -> social_amenities: ["basketbol sahası"], answered_categories: ['SOCIAL_AMENITIES']
    - "Havuz ve spor salonu" -> social_amenities: ["havuz", "spor salonu"]
-   - "İstemiyorum"/"Yok" -> social_amenities: [], answered_categories: ['SOCIAL_AMENITIES']
-   - Konu geçmediyse null döndür
+   - "İstemiyorum", "Gerek yok", "Kullanmıyorum" -> social_amenities: [], answered_categories: ['SOCIAL_AMENITIES']
+   - **Konu hiç geçmediyse KESİNLİKLE null döndür.** ASLA durduk yere boş liste [] döndürme.
+   - ⚠️ **Negatif Kontrol:** "Çalışma odası", "Balkon", "Otopark", "Ebeveyn banyosu" -> Bunlar sosyal alan DEĞİLDİR. Listeye EKLEME.
    - ⚠️ DİKKAT: Kullanıcı "basketbol sahası" gibi TEK bir şey söylese bile answered_categories'e 'SOCIAL_AMENITIES' EKLE!
 13. **answered_categories Kuralı**:
    - Kullanıcı bir soruya cevap verdiyse (null olsa bile), o kategoriyi answered_categories'e EKLE
