@@ -105,7 +105,7 @@ GÖREV:
    - "Havuz ve spor salonu" -> social_amenities: ["havuz", "spor salonu"]
    - "İstemiyorum", "Gerek yok", "Kullanmıyorum" -> social_amenities: ["HAYIR"], answered_categories: ['SOCIAL_AMENITIES']
    - **Konu hiç geçmediyse KESİNLİKLE null döndür.** ASLA durduk yere boş liste [] veya ["HAYIR"] döndürme.
-   - ⚠️ **Negatif Kontrol:** "Çalışma odası", "Balkon", "Otopark", "Ebeveyn banyosu" -> Bunlar sosyal alan DEĞİLDİR. Listeye EKLEME.
+   - ⚠️ **Negatif Kontrol:** "Çalışma odası", "Balkon", "Otopark", "Ebeveyn banyosu", "Güvenlik", "Okula yakınlık", "Manzara" -> Bunlar sosyal alan DEĞİLDİR. Listeye EKLEME.
    - ⚠️ DİKKAT: Kullanıcı "basketbol sahası" gibi TEK bir şey söylese bile answered_categories'e 'SOCIAL_AMENITIES' EKLE!
 13. **answered_categories Kuralı**:
    - Kullanıcı bir soruya cevap verdiyse (null olsa bile), o kategoriyi answered_categories'e EKLE
