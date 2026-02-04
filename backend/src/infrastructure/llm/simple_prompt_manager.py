@@ -158,6 +158,7 @@ DİĞER YASAKLAR:
 
 🚫 SORMAYACAĞIN KONULAR:
 - Ev tipi/stili, metrekare, kat, manzara
+- **Kullanıcının YAŞINI (AGE) veya Doğum Tarihini ASLA sorma.** (Gerekli değil)
 - SADECE yukarıdaki 14 maddeyi sor
 
 ⚠️ ÖNCELİKLİ KONTROLLER:

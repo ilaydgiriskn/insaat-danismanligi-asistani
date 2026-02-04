@@ -275,17 +275,28 @@ class ProcessUserMessageUseCase:
             if extracted_info.get("profession"): profile.profession = extracted_info["profession"]
             if extracted_info.get("marital_status"): profile.marital_status = extracted_info["marital_status"]
             
-            # Sanitize has_children (LLM sometimes returns string "null" instead of None)
+            # Sanitize has_children
             if extracted_info.get("has_children") is not None:
                 val = extracted_info["has_children"]
                 if val == "null" or val == "None" or val == "":
                     profile.has_children = None
                 elif isinstance(val, bool):
-                    profile.has_children = val
+                     profile.has_children = val
                 elif isinstance(val, str):
-                    profile.has_children = val.lower() in ["true", "yes", "evet", "1"]
+                     profile.has_children = val.lower() in ["true", "yes", "evet", "1"]
                 else:
-                    profile.has_children = bool(val)
+                     profile.has_children = bool(val)
+                profile.answered_categories.add(QuestionCategory.CHILDREN)
+
+            # Handle explicit child count if available
+            if extracted_info.get("child_count") is not None:
+                try:
+                    count = int(extracted_info["child_count"])
+                    profile.family_size = count
+                    profile.has_children = (count > 0)
+                    profile.answered_categories.add(QuestionCategory.CHILDREN)
+                except:
+                    pass
             
             if extracted_info.get("hobbies"):
                 profile.hobbies = extracted_info["hobbies"]
@@ -351,9 +362,27 @@ class ProcessUserMessageUseCase:
                 profile.answered_categories.add(QuestionCategory.ESTIMATED_SALARY)
             
             if extracted_info.get("social_amenities") is not None:
-                profile.social_amenities = extracted_info["social_amenities"]
-                profile.answered_categories.add(QuestionCategory.SOCIAL_AMENITIES)
-                self.logger.info(f"Updated social amenities: {profile.social_amenities}")
+                amenities = extracted_info["social_amenities"]
+                
+                # Check for explicit rejection token
+                if amenities and isinstance(amenities, list) and len(amenities) == 1 and str(amenities[0]).upper() == "HAYIR":
+                    self.logger.info("Social amenities explicitly rejected by user")
+                    profile.social_amenities = [] # Empty list means "None wanted"
+                    profile.answered_categories.add(QuestionCategory.SOCIAL_AMENITIES)
+                
+                # Check for actual items
+                elif amenities and isinstance(amenities, list) and len(amenities) > 0:
+                    # Filter out "HAYIR" if mixed (shouldn't happen but safe)
+                    clean_list = [item for item in amenities if str(item).upper() != "HAYIR"]
+                    if clean_list:
+                        profile.social_amenities = clean_list
+                        profile.answered_categories.add(QuestionCategory.SOCIAL_AMENITIES)
+                        self.logger.info(f"Updated social amenities: {profile.social_amenities}")
+                
+                # If empty list [] came from LLM (without HAYIR), we IGNORE it to prevent hallucinations
+                # unless explicitly marked in answered_categories (which is handled by sync block below)
+                else:
+                    self.logger.info("Ignored empty social_amenities list (Hallucination protection)")
             
             if extracted_info.get("purchase_purpose"):
                 profile.purchase_purpose = extracted_info["purchase_purpose"]

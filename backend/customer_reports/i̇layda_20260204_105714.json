@@ -1,0 +1,54 @@
+{
+  "rapor_tarihi": "2026-02-04T10:57:14.575196",
+  "musteri_bilgileri": {
+    "isim": "İlayda Girişken",
+    "telefon": null,
+    "email": null,
+    "memleket": "Şanlıurfa",
+    "yasadigi_sehir": "Gaziantep",
+    "yasadigi_ilce": null
+  },
+  "profesyonel_bilgiler": {
+    "meslek": "İnşaat Mühendisi",
+    "tahmini_maas": "300000"
+  },
+  "aile_bilgileri": {
+    "medeni_durum": "bekar",
+    "cocuk_var_mi": null,
+    "aile_buyuklugu": null
+  },
+  "yasam_tarzi": {
+    "hobiler": [],
+    "notlar": "Kariyer odaklı"
+  },
+  "konut_tercihleri": {
+    "hedef_sehir": "Gaziantep",
+    "hedef_ilce": null,
+    "oda_sayisi": 5,
+    "ev_tipi": "apartment",
+    "sosyal_alanlar": [],
+    "satin_alma_amaci": "Oturum",
+    "birikim_durumu": "Yok",
+    "kredi_kullanimi": "Evet",
+    "takas_tercihi": "Hayır"
+  },
+  "butce_analizi": {
+    "belirtilen_butce": null,
+    "para_birimi": "TRY",
+    "tavsiye_edilen_segment": "A",
+    "guven_seviyesi": "medium",
+    "ust_segmente_gecis_mumkun": null,
+    "ek_butce_gerekli": null
+  },
+  "ai_degerlendirmesi": {
+    "risk_istahi": "orta",
+    "satin_alma_motivasyonu": "yasam",
+    "satin_alma_zamani": "belirsiz",
+    "detayli_analiz": "İlayda, mesleği gereği inşaat detaylarına hakim, bilinçli ve kariyer odaklı bir inşaat mühendisi. Gaziantep merkezde yaşıyor ve burada kalmak istiyor, bu da şehre ve iş olanaklarına bağlılığını gösteriyor. Aslen Şanlıurfalı olmasına rağmen, hayatını Gaziantep'te kurmuş görünüyor. Bekar olduğunu ve evlilik düşünmediğini, tamamen kariyerine odaklandığını belirtiyor. Bu durum, ev seçiminde sosyal alanlardan ziyade kişisel konfor ve çalışma alanına öncelik verebileceğini düşündürüyor. Ortalama 300 bin TL civarında bir maaşı olduğunu söylüyor. Birikimi olmadığını ancak kredi kullanmayı ve maaşının yeterli olabileceğini düşündüğünü ifade ediyor, bu da finansal planlamasını kredi üzerine kurduğunu ve orta seviyede bir risk iştahı olduğunu gösteriyor. 5+1 gibi geniş bir daire arayışında olması, sadece yaşam alanı değil, aynı zamanda muhtemelen ofis/çalışma alanı veya misafir ağırlamak için de alan istediğine işaret ediyor. Mesleği nedeniyle 'fiyat performans ürünü' ve kaliteli yapıya önem verdiği açık. Takas düşünmediğini belirtmesi, işlemi tamamen nakit/kredi ile tamamlamayı planladığını gösteriyor.",
+    "ozet": "",
+    "tavsiyeler": [],
+    "dikkat_noktalari": [],
+    "yasam_tarzi_notlari": []
+  },
+  "status": "PROFIL_TAMAMLANDI_EMLAKCIYA_GONDERILDI"
+}

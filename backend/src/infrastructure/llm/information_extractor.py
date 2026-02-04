@@ -60,6 +60,8 @@ GÖREV:
      * **TAŞINMA İFADELERİ (ÇOK ÖNEMLİ!):**
        - "Bursa'ya taşınıyoruz", "İzmir'e gidiyoruz", "Antep'e taşınmamız gerek", "İstanbul'a yerleşeceğiz" → location = o şehir
        - "İş için X'e gitmem lazım" → location = X
+       - **"Burada kalacağım", "Aynı yerde oturmak istiyorum", "Şehri değiştirmem", "yine burda kalıırm"** -> location = Konuşmada geçen şehir (Gaziantep, Ankara vb.)
+       - "Antep merkezdeyim yine burda kalıırm" -> current_city: "Gaziantep", location: "Gaziantep"
        - Kullanıcı "Ankara'da yaşıyorum ama İzmir'e taşınacağım" derse: current_city=Ankara, location=İzmir
    - **`hometown`** (MEMLEKET): "Bursalıyım", "Antepliyim" → Nereli olduğu (Sadece "-liyim/-lıyım" ifadelerinde doldur)
    - ⚠️ Bu 3 kavramı ASLA karıştırma! Her biri ayrı field.
@@ -101,8 +103,8 @@ GÖREV:
    - Liste olarak döndür: ["havuz", "spor salonu", "basketbol sahası", "çocuk parkı", "yürüyüş yolu"]
    - "Basketbol sahası istiyorum" -> social_amenities: ["basketbol sahası"], answered_categories: ['SOCIAL_AMENITIES']
    - "Havuz ve spor salonu" -> social_amenities: ["havuz", "spor salonu"]
-   - "İstemiyorum", "Gerek yok", "Kullanmıyorum" -> social_amenities: [], answered_categories: ['SOCIAL_AMENITIES']
-   - **Konu hiç geçmediyse KESİNLİKLE null döndür.** ASLA durduk yere boş liste [] döndürme.
+   - "İstemiyorum", "Gerek yok", "Kullanmıyorum" -> social_amenities: ["HAYIR"], answered_categories: ['SOCIAL_AMENITIES']
+   - **Konu hiç geçmediyse KESİNLİKLE null döndür.** ASLA durduk yere boş liste [] veya ["HAYIR"] döndürme.
    - ⚠️ **Negatif Kontrol:** "Çalışma odası", "Balkon", "Otopark", "Ebeveyn banyosu" -> Bunlar sosyal alan DEĞİLDİR. Listeye EKLEME.
    - ⚠️ DİKKAT: Kullanıcı "basketbol sahası" gibi TEK bir şey söylese bile answered_categories'e 'SOCIAL_AMENITIES' EKLE!
 13. **answered_categories Kuralı**:
@@ -137,7 +139,9 @@ Cevap formatı kesinlikle JSON olmalıdır.
                             "current_city": "string or null", # NEW: Where they live now
                             "profession": "string or null",
                             "marital_status": "string or null",
+                            "marital_status": "string or null",
                             "has_children": "boolean or null",
+                            "child_count": "number or null", # NEW: capture specific number
                             "purchase_budget": "number or null",
                             "monthly_income": "number or null",
                             "social_amenities": "array of strings",

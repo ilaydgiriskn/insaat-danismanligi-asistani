@@ -1,0 +1,76 @@
+{
+  "rapor_tarihi": "2026-02-04T07:50:07.499365",
+  "musteri_bilgileri": {
+    "isim": "İlayda Girişken",
+    "telefon": null,
+    "email": null,
+    "memleket": "Şanlıurfa",
+    "yasadigi_sehir": "Gaziantep",
+    "yasadigi_ilce": null
+  },
+  "profesyonel_bilgiler": {
+    "meslek": "Doktor",
+    "tahmini_maas": "80000"
+  },
+  "aile_bilgileri": {
+    "medeni_durum": "nişanlı",
+    "cocuk_var_mi": true,
+    "aile_buyuklugu": null
+  },
+  "yasam_tarzi": {
+    "hobiler": [],
+    "notlar": null
+  },
+  "konut_tercihleri": {
+    "hedef_sehir": "Gaziantep",
+    "hedef_ilce": null,
+    "oda_sayisi": 5,
+    "ev_tipi": "apartment",
+    "sosyal_alanlar": [
+      "Havuz",
+      "Spor Salonu",
+      "Park"
+    ],
+    "satin_alma_amaci": "Yatırım",
+    "birikim_durumu": "2 milyon dolar",
+    "kredi_kullanimi": "Evet",
+    "takas_tercihi": "Evet (araba takası düşünüyor)"
+  },
+  "butce_analizi": {
+    "belirtilen_butce": null,
+    "para_birimi": "TRY",
+    "tavsiye_edilen_segment": "A",
+    "guven_seviyesi": "medium",
+    "ust_segmente_gecis_mumkun": null,
+    "ek_butce_gerekli": null
+  },
+  "ai_degerlendirmesi": {
+    "risk_istahi": "medium",
+    "satin_alma_motivasyonu": "yatırım",
+    "satin_alma_zamani": "hemen",
+    "detayli_analiz": "İlayda, Şanlıurfalı bir doktor ve nişanlı. 80 bin TL aylık geliri ve 2 milyon dolar gibi ciddi bir birikimi ile yatırım amaçlı Gaziantep'te ev bakıyor. İki çocuğu olduğunu belirtti, bu da aile odaklı bir yatırım kararı aldığını gösteriyor. 4+1 ve çalışma odası talebi, hem ailesi için geniş bir yaşam alanı hem de kendisi için profesyonel bir çalışma köşesi istediğini ortaya koyuyor. Havuz, spor salonu ve yürüyüş parkı istekleri, yaşam kalitesine ve çocuklarının sosyal gelişimine önem verdiğini anlatıyor. Kredi kullanmayı ve hatta bir arabasını takas olarak değerlendirmeyi düşünmesi, finansal planlamasında esnek ve pragmatik bir yaklaşımı olduğunu gösteriyor. Yatırım odaklı bu karar, güçlü bir finansal arka plan ile destekleniyor.",
+    "ozet": "İlayda, güçlü bir finansal profille yatırım amaçlı, aile dostu ve sosyal donatılı bir daire arıyor.",
+    "tavsiyeler": [
+      "1. Gaziantep'in gelişmekte olan ve yatırım potansiyeli yüksek semtlerinde (örneğin, Şehitkamil'deki yeni projeler) 4+1 daireler öncelikli olarak sunulmalı.",
+      "2. Havuz, spor salonu, çocuk oyun ve yürüyüş parkı olan, aile yaşamına uygun rezidans projelerine odaklanılmalı.",
+      "3. Çalışma odası olan veya bu amaçla düzenlenebilecek esnek planlı daireler önerilmeli.",
+      "4. Yüksek birikim ve kredi potansiyeli göz önüne alınarak, birden fazla yatırım seçeneği (örneğin, daire + dükkan) sunulabilir."
+    ],
+    "dikkat_noktalari": [
+      "1. Yatırım amacı baskın olduğu için, konutun kira getirisi ve gelecekteki değer artış potansiyeli en kritik kriterler olmalı.",
+      "2. Araba takası gibi alternatif ödeme yöntemleri için esnek ve yaratıcı çözümler geliştirilmeye hazır olunmalı.",
+      "3. İki çocuklu bir aile için seçilecek sitenin güvenlik ve sosyal alan kalitesi çok önemli."
+    ],
+    "yasam_tarzi_notlari": [
+      "1. Kullanıcı, yüksek gelirli (80k TL) ve yüksek birikimli (2 milyon dolar) bir doktor.",
+      "2. Yatırım amaçlı Gaziantep'te mülk almak istiyor, oturum amacı yok.",
+      "3. Nişanlı ve 2 çocuğu var, aile odaklı yatırım kararı alıyor.",
+      "4. 4+1 ve çalışma odası talebi, hem aile hem de profesyonel ihtiyaçları için geniş alan istediğini gösteriyor.",
+      "5. Havuz, spor salonu ve yürüyüş parkı isteği, yaşam kalitesine ve aktif sosyal hayata önem verdiğini ortaya koyuyor.",
+      "6. Kredi kullanmayı düşünüyor, bu da finansal kaldıracı değerlendirmek istediğini gösteriyor.",
+      "7. Bir arabasını takas olarak değerlendirmeyi düşünmesi, likiditeyi korumaya yönelik pragmatik bir yaklaşımı olduğunu anlatıyor.",
+      "8. Şanlıurfalı olması, Gaziantep'in coğrafi ve kültürel yakınlığının yatırım kararında etkili olabileceğini düşündürüyor."
+    ]
+  },
+  "status": "PROFIL_TAMAMLANDI_EMLAKCIYA_GONDERILDI"
+}
